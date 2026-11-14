@@ -1,5 +1,6 @@
 # Portfolio de Johanne Pamegne
 
-Site publié automatiquement : https://johnnyrayane237.github.io/
+- https://johnnyrayane237.github.io/
+- https://johanne.vorchex.tech/
 
 Le code source est sur la branche `source`.
