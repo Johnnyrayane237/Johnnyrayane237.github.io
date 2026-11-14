@@ -9,6 +9,7 @@ import Lenis from 'lenis';
 import { content, contact } from './i18n.js';
 import { initHero } from './hero-gl.js';
 import { initExtras } from './extras.js';
+import { renderHood, hoodTexts, renderFeatures, initHood } from './hood-render.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -51,6 +52,10 @@ $('#pipelineLog').innerHTML = L.pipeline.log.map((l) => `<p>${esc(l)}</p>`).join
 $('#reel').innerHTML = L.motion.map((m, i) => `<button class="clip" type="button" style="aspect-ratio:${m.ratio}" data-video="${m.src}" data-cursor="view" aria-label="${esc(T['motion.play'])} — ${esc(m.title)}">
   <video muted loop playsinline preload="none" poster="${m.poster}" data-src="${m.src}"></video><span class="clip__n mono">${pad(i + 1)}</span>
   <span class="clip__cap"><strong>${esc(m.title)}</strong><span class="mono">${esc(m.meta)}</span></span></button>`).join('');
+
+const HD = hoodTexts(lang);
+$('#hoodLabel').textContent = HD.label; $('#hoodTitle').innerHTML = HD.title; $('#hoodIntro').textContent = HD.intro; $('#hoodNote').textContent = HD.note;
+$('#hood').innerHTML = renderHood(lang);
 
 $('#caps').innerHTML = L.caps.map(([t, items], i) => `<article class="cap"><span class="cap__n mono">${pad(i + 1)}</span><h3>${esc(t)}</h3><ul>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></article>`).join('');
 $('#path').innerHTML = L.path.map(([y, t, o, d]) => `<li class="step"><span class="step__y mono">${esc(y)}</span><div><h3>${esc(t)}</h3><p class="step__o">${esc(o)}</p></div><p class="step__d">${esc(d)}</p></li>`).join('');
@@ -229,9 +234,9 @@ function renderCase(id) {
         <button class="btn" type="button" data-next="${next.id}"><span class="btn__fill"></span><span>${esc(T['case.next'])} — ${esc(next.title)}</span><span class="btn__arrow">→</span></button></div></div>
       <div><h4>${esc(T['case.results'])}</h4><div class="metrics">${p.metrics.map(([b, s]) => `<div class="metric"><b>${esc(b)}</b><span>${esc(s)}</span></div>`).join('')}</div>
         <h4>${esc(T['case.stack'])}</h4><div class="case__stack">${p.stack.map((s) => `<i class="tag">${esc(s)}</i>`).join('')}</div>
-        <h4>${esc(T['case.built'])}</h4><ul class="case__built">${p.built.map((b) => `<li>${esc(b)}</li>`).join('')}</ul></div></div>`;
+        <h4>${esc(T['case.built'])}</h4><ul class="case__built">${p.built.map((b) => `<li>${esc(b)}</li>`).join('')}</ul></div>${renderFeatures(lang, p.id)}</div>`;
   $('.case__scroll').scrollTop = 0;
-  if (!reduced) gsap.from('#caseBody .case__n, #caseBody .case__title, #caseBody .case__sub, #caseBody .case__summary, #caseBody .case__img, #caseBody .metric, #caseBody .case__built li, #caseBody .case__links', { y: 40, opacity: 0, duration: 0.9, stagger: 0.04, ease: 'expo.out', delay: 0.15 });
+  if (!reduced) gsap.from('#caseBody .case__n, #caseBody .case__title, #caseBody .case__sub, #caseBody .case__summary, #caseBody .case__img, #caseBody .metric, #caseBody .case__built li, #caseBody .case__links, #caseBody .feat', { y: 40, opacity: 0, duration: 0.9, stagger: 0.04, ease: 'expo.out', delay: 0.15 });
 }
 function openCase(id) {
   lastFocus = document.activeElement; caseOpen = true; caseEl.setAttribute('aria-hidden', 'false'); lenis?.stop(); hidePreview();
@@ -300,8 +305,11 @@ if (fine && !reduced) {
   });
 }
 
+// ---------- Sous le capot ----------
+initHood({ reduced, lang });
+
 // ---------- Couche cinéma ----------
-initExtras({ lenis, hero, reduced, fine, lang, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#travaux', T['nav.work']], ['#pipeline', T['nav.pipeline']], ['#motion', T['nav.motion']], ['#capacites', lang === 'fr' ? 'Capacités' : 'Capabilities'], ['#parcours', T['nav.path']], ['#contact', T['nav.contact']]] });
+initExtras({ lenis, hero, reduced, fine, lang, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#travaux', T['nav.work']], ['#pipeline', T['nav.pipeline']], ['#sous-le-capot', lang === 'fr' ? 'Sous le capot' : 'Under the hood'], ['#motion', T['nav.motion']], ['#capacites', lang === 'fr' ? 'Capacités' : 'Capabilities'], ['#parcours', T['nav.path']], ['#contact', T['nav.contact']]] });
 
 // ---------- Divers ----------
 langBtn.addEventListener('click', () => {
