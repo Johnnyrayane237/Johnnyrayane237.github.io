@@ -38,7 +38,7 @@ if ((!url || !token) && existsSync(ACCES)) {
 if (!url || !token) {
   console.log('Coolify : accès introuvable, johanne.vorchex.tech n\'a pas été mis à jour.');
 } else {
-  const r = await fetch(`${url}/api/v1/deploy?uuid=${COOLIFY_APP}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+  const r = await fetch(`${url}/api/v1/deploy?uuid=${COOLIFY_APP}`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
   if (r.ok) console.log('Coolify : redéploiement lancé → https://johanne.vorchex.tech/ (à jour dans 1 minute environ)');
   else console.log(`Coolify : échec du redéploiement (code ${r.status}).`);
 }
