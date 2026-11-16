@@ -10,8 +10,16 @@ import { content, contact } from './i18n.js';
 import { initHero } from './hero-gl.js';
 import { initExtras } from './extras.js';
 import { renderHood, hoodTexts, renderFeatures, initHood } from './hood-render.js';
+import { initPipeline3D } from './pipeline-3d.js';
 
 gsap.registerPlugin(ScrollTrigger);
+// Les sections épinglées (pipeline, vidéos) allongent la page. Pour que chaque animation située
+// plus bas se déclenche au bon endroit, les déclencheurs sont recalculés dans l'ordre de la page.
+ScrollTrigger.addEventListener('refreshInit', () => ScrollTrigger.sort((a, b) => {
+  const A = a.trigger, B = b.trigger;
+  if (!A || !B || A === B) return A === B ? 0 : A ? 1 : -1;
+  return A.compareDocumentPosition(B) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+}));
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -46,8 +54,9 @@ $('#workList').innerHTML = L.projects.map((p, i) => `<li><button class="row" typ
   <span class="row__n mono">${pad(i + 1)}</span><span class="row__title">${esc(p.title)}</span><span class="row__sub">${esc(p.sub)}</span>
   <span class="row__tags">${p.tags.map((t) => `<i class="tag">${esc(t)}</i>`).join('')}</span><span class="row__arrow" aria-hidden="true">→</span></button></li>`).join('');
 
-$('#pipelineGraph').innerHTML = L.pipeline.nodes.map(([t, d], i) => `<div class="node"><div class="node__box"><div class="node__i mono"><span>${pad(i + 1)}</span><b></b></div><div class="node__t">${esc(t)}</div><div class="node__d">${esc(d)}</div></div><i class="node__link"></i></div>`).join('');
-$('#pipelineLog').innerHTML = L.pipeline.log.map((l) => `<p>${esc(l)}</p>`).join('');
+const HUMAN = L.pipeline.human; // l'étape où une personne valide — ici, le visiteur
+$('#pipelineGraph').innerHTML = L.pipeline.nodes.map(([t, d], i) => `<div class="node${i === HUMAN.index ? ' node--human' : ''}"><div class="node__box"><div class="node__i mono"><span>${pad(i + 1)}</span><b></b></div><div class="node__t">${esc(t)}</div><div class="node__d">${esc(d)}</div>${i === HUMAN.index ? `<button class="node__ok mono" type="button">${esc(HUMAN.btn)}</button>` : ''}</div><i class="node__link"></i></div>`).join('');
+$('#pipelineLog').innerHTML = L.pipeline.log.map((l) => `<p>${esc(l)}</p>`).join('') + `<p class="is-human">${esc(HUMAN.log)}</p>`;
 
 $('#reel').innerHTML = L.motion.map((m, i) => `<button class="clip" type="button" style="aspect-ratio:${m.ratio}" data-video="${m.src}" data-cursor="view" aria-label="${esc(T['motion.play'])} — ${esc(m.title)}">
   <video muted loop playsinline preload="none" poster="${m.poster}" data-src="${m.src}"></video><span class="clip__n mono">${pad(i + 1)}</span>
@@ -111,7 +120,7 @@ function intro() {
   lenis?.start();
   const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
   if (hero) tl.to(hero.uniforms.uIntro, { value: 1, duration: 2.4, ease: 'expo.out' }, 0);
-  tl.from('.hero__line .char', { yPercent: 120, rotate: 6, duration: 1.5, stagger: 0.035 }, 0.1)
+  tl.from('.hero__line .char', { yPercent: 120, rotate: 6, rotateX: -85, transformPerspective: 700, duration: 1.5, stagger: 0.035 }, 0.1)
     .from('.hero__top > *, .hero__bottom > *', { y: 26, opacity: 0, duration: 1.1, stagger: 0.08 }, 0.7)
     .from('.header > *', { y: -30, opacity: 0, duration: 1, stagger: 0.08 }, 0.6)
     .from('.hero__bottom', { '--line': 0, duration: 1 }, 0.6);
@@ -145,7 +154,7 @@ if (!reduced) {
   // Bandeau : vitesse liée au défilement
   const track = $('#marquee'); track.innerHTML += track.innerHTML;
   let mx = 0, speed = 1;
-  ScrollTrigger.create({ onUpdate: (s) => { speed = 1 + Math.min(Math.abs(s.getVelocity()) / 220, 9) * (s.direction || 1); } });
+  ScrollTrigger.create({ onUpdate: (s) => { const v = s.getVelocity(); speed = 1 + Math.min(Math.abs(v) / 220, 9) * (s.direction || 1); if (hero) hero.velocity = Math.min(Math.abs(v) / 3200, 1); } });
   gsap.ticker.add(() => { mx -= speed * 0.9; speed += (1 - speed) * 0.06; const half = track.scrollWidth / 2; if (mx <= -half) mx += half; if (mx > 0) mx -= half; track.style.transform = `translate3d(${mx}px,0,0)`; });
 
   // Manifeste : les mots s'allument
@@ -162,13 +171,15 @@ if (!reduced) {
     const o = { v: 0 }, end = +el.dataset.count;
     gsap.to(o, { v: end, duration: 1.8, ease: 'power3.out', onUpdate: () => { el.textContent = Math.round(o.v); }, scrollTrigger: { trigger: el, start: 'top 90%' } });
   });
-  gsap.from('.stat', { y: 40, opacity: 0, duration: 1, stagger: 0.09, ease: 'expo.out', scrollTrigger: { trigger: '#stats', start: 'top 88%' } });
+  gsap.from('.stat', { y: 40, opacity: 0, rotateX: -70, transformPerspective: 800, transformOrigin: '50% 0%', duration: 1.1, stagger: 0.09, ease: 'expo.out', scrollTrigger: { trigger: '#stats', start: 'top 88%' } });
 
-  // Listes
-  gsap.from('#workList li', { y: 60, opacity: 0, duration: 1.1, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '#workList', start: 'top 85%' } });
-  gsap.from('.cap', { y: 50, opacity: 0, duration: 1, stagger: 0.07, ease: 'expo.out', scrollTrigger: { trigger: '#caps', start: 'top 85%' } });
-  $$('.step').forEach((el) => gsap.from(el, { y: 34, opacity: 0, duration: 1, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 92%' } }));
-  gsap.from('#mdmPages img', { yPercent: (i) => 18 + i * 14, rotate: (i) => (i % 2 ? 3 : -3), ease: 'none', scrollTrigger: { trigger: '#mdmPages', start: 'top bottom', end: 'bottom 60%', scrub: 0.8 } });
+  // Listes : chaque bloc bascule dans la profondeur en arrivant
+  gsap.from('#workList li', { y: 60, opacity: 0, rotateX: -32, transformPerspective: 1100, transformOrigin: '50% 100%', duration: 1.1, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '#workList', start: 'top 85%' } });
+  gsap.from('.cap', { y: 50, opacity: 0, rotateX: -55, transformPerspective: 900, transformOrigin: '50% 0%', duration: 1.2, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '#caps', start: 'top 85%' } });
+  $$('.step').forEach((el) => gsap.from(el, { y: 34, opacity: 0, rotateX: -40, transformPerspective: 900, transformOrigin: '50% 0%', duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 92%' } }));
+  // Les quatre pages se déplient en éventail
+  gsap.set('#mdmPages', { perspective: 1500 });
+  gsap.from('#mdmPages img', { yPercent: (i) => 20 + i * 12, rotateY: (i) => -58 + i * 9, rotateX: 12, z: (i) => -280 - i * 70, opacity: 0.25, transformOrigin: '0% 50%', ease: 'none', scrollTrigger: { trigger: '#mdmPages', start: 'top bottom', end: 'bottom 72%', scrub: 0.8 } });
   gsap.from('.contact__text, .contact__actions > *, .contact__list > div', { y: 30, opacity: 0, duration: 1, stagger: 0.06, ease: 'expo.out', scrollTrigger: { trigger: '.contact__text', start: 'top 92%' } });
 
   // En-tête : se cache en descendant
@@ -176,25 +187,81 @@ if (!reduced) {
 }
 
 // ---------- Pipeline ----------
-const nodes = $$('.node'), logs = $$('#pipelineLog p');
+const pipelineEl = $('.pipeline'), nodes = $$('.node'), logs = $$('#pipelineLog p:not(.is-human)'), humanLog = $('#pipelineLog .is-human');
+let pipe3d = null, validated = false, lastStep = 0;
 function setPipeline(p) {
-  const n = nodes.length, f = p * n;
+  const n = nodes.length, f = p * n; lastStep = p;
   nodes.forEach((node, i) => { node.classList.toggle('is-on', f >= i + 0.15); $('.node__link', node).style.setProperty('--p', Math.max(0, Math.min(1, f - i - 0.35) * 1.6).toFixed(3)); });
   logs.forEach((l, i) => l.classList.toggle('is-on', f >= i + 0.3));
+  humanLog.classList.toggle('is-on', validated && f >= HUMAN.index + 0.15);
+  // En 3D, le journal ne garde que ses trois dernières lignes, comme la fin d'un terminal.
+  const lit = [...logs, humanLog].filter((l) => l.classList.contains('is-on'));
+  [...logs, humanLog].forEach((l) => l.classList.toggle('is-tail', lit.indexOf(l) >= Math.max(0, lit.length - 3) && lit.includes(l)));
 }
+// « À vous de valider » : rien ne part sans le clic d'une personne.
+$('.node__ok').addEventListener('click', () => {
+  if (validated) return;
+  validated = true; pipelineEl.classList.add('is-validated');
+  $('.node--human .node__d').textContent = HUMAN.done;
+  pipe3d?.validate(); setPipeline(lastStep);
+});
 const mm = gsap.matchMedia();
+// Mur d'images courbe : état 3D de chaque vidéo (courbure du mur + inclinaison sous la souris)
+const clips = $$('.clip'), clipState = clips.map(() => ({ ry: 0, z: 0, hx: 0, hy: 0 }));
+let wall = false;
+const applyClip = (i) => { const s = clipState[i]; clips[i].style.transform = `${wall ? '' : 'perspective(900px) '}translateZ(${s.z.toFixed(1)}px) rotateY(${(s.ry + s.hy).toFixed(2)}deg) rotateX(${s.hx.toFixed(2)}deg)`; };
 if (reduced) setPipeline(1);
 else {
   mm.add('(min-width: 761px)', () => {
     gsap.from('.pipeline .w > span', { yPercent: 115, duration: 1.2, ease: 'expo.out', stagger: 0.05, scrollTrigger: { trigger: '.pipeline', start: 'top 70%' } });
-    ScrollTrigger.create({ trigger: '.pipeline__pin', start: 'top top', end: '+=2400', pin: true, scrub: 0.5, onUpdate: (s) => setPipeline(s.progress * 1.08) });
-    // Bande de vidéos horizontale
+    // La machine en 3D ; sans WebGL, le schéma à plat reste en place.
+    try { pipe3d = initPipeline3D({ section: pipelineEl, mount: $('#pipelineGraph'), labels: nodes }); } catch { pipe3d = null; pipelineEl.classList.remove('is-3d'); }
+    if (pipe3d && validated) pipe3d.validate();
+    const drive = (p) => setPipeline(pipe3d ? pipe3d.setProgress(p) / nodes.length : p * 1.08);
+    const fxOff = () => document.documentElement.classList.contains('fx-off');
+    ScrollTrigger.create({ trigger: '.pipeline__pin', start: 'top top', end: pipe3d ? '+=3000' : '+=2400', pin: true, scrub: 0.5, onUpdate: (s) => drive(s.progress),
+      onToggle: (s) => { if (!hero || !pipe3d) return; if (s.isActive) hero.pause(); else if (!fxOff()) hero.play(); } });
+    drive(0);
+    // Bande de vidéos horizontale, en mur courbe
     const reel = $('#reel');
     const dist = () => Math.max(0, reel.scrollWidth - window.innerWidth + parseFloat(getComputedStyle(reel).paddingRight));
-    gsap.to(reel, { x: () => -dist(), ease: 'none', scrollTrigger: { trigger: reel, start: 'center center', end: () => `+=${dist()}`, pin: '.motion', scrub: 0.6, invalidateOnRefresh: true } });
+    wall = true;
+    const curve = () => {
+      const vw = window.innerWidth, left = reel.getBoundingClientRect().left;
+      clips.forEach((c, i) => {
+        const n = gsap.utils.clamp(-1.4, 1.4, (left + c.offsetLeft + c.offsetWidth / 2 - vw / 2) / vw);
+        clipState[i].ry = -n * 40; clipState[i].z = -(Math.abs(n) ** 1.6) * 300; applyClip(i);
+      });
+    };
+    gsap.to(reel, { x: () => -dist(), ease: 'none', onUpdate: curve, scrollTrigger: { trigger: reel, start: 'center center', end: () => `+=${dist()}`, pin: '.motion', scrub: 0.6, invalidateOnRefresh: true, onRefresh: curve } });
+    curve();
+    return () => { pipe3d?.destroy(); pipe3d = null; wall = false; clipState.forEach((s, i) => { s.ry = 0; s.z = 0; applyClip(i); }); if (hero && !fxOff()) hero.play(); };
   });
+  // Téléphone : la même machine 3D, en version allégée, et le mur de vidéos courbe au glissement du doigt.
   mm.add('(max-width: 760px)', () => {
-    ScrollTrigger.create({ trigger: '.pipeline__stage', start: 'top 75%', end: 'bottom 55%', scrub: 0.5, onUpdate: (s) => setPipeline(s.progress * 1.08) });
+    const fxOff = () => document.documentElement.classList.contains('fx-off');
+    gsap.from('.pipeline .w > span', { yPercent: 115, duration: 1.2, ease: 'expo.out', stagger: 0.05, scrollTrigger: { trigger: '.pipeline', start: 'top 80%' } });
+    try { pipe3d = initPipeline3D({ section: pipelineEl, mount: $('#pipelineGraph'), labels: nodes, compact: true }); } catch { pipe3d = null; pipelineEl.classList.remove('is-3d'); }
+    if (pipe3d) {
+      if (validated) pipe3d.validate();
+      const drive = (p) => setPipeline(pipe3d.setProgress(p) / nodes.length);
+      ScrollTrigger.create({ trigger: '.pipeline__pin', start: 'top top', end: '+=2400', pin: true, scrub: 0.5, onUpdate: (s) => drive(s.progress),
+        onToggle: (s) => { if (!hero) return; if (s.isActive) hero.pause(); else if (!fxOff()) hero.play(); } });
+      drive(0);
+    } else {
+      ScrollTrigger.create({ trigger: '.pipeline__stage', start: 'top 75%', end: 'bottom 55%', scrub: 0.5, onUpdate: (s) => setPipeline(s.progress * 1.08) });
+    }
+    const reel = $('#reel');
+    const curve = () => {
+      const vw = window.innerWidth, left = reel.getBoundingClientRect().left - reel.scrollLeft;
+      clips.forEach((c, i) => {
+        const n = gsap.utils.clamp(-1.2, 1.2, (left + c.offsetLeft + c.offsetWidth / 2 - vw / 2) / vw);
+        clipState[i].ry = -n * 26; clipState[i].z = -(Math.abs(n) ** 1.5) * 140; applyClip(i);
+      });
+    };
+    reel.addEventListener('scroll', curve, { passive: true });
+    curve();
+    return () => { reel.removeEventListener('scroll', curve); pipe3d?.destroy(); pipe3d = null; clipState.forEach((s, i) => { s.ry = 0; s.z = 0; applyClip(i); }); if (hero && !fxOff()) hero.play(); };
   });
 }
 
@@ -291,7 +358,7 @@ if (fine && !reduced) {
       gsap.to(preview, { opacity: 1, duration: 0.3 });
       gsap.to('.preview__inner', { clipPath: 'inset(0% 0 0 0)', duration: 0.7, ease: 'expo.out', overwrite: true });
       gsap.fromTo(previewImg, { scale: 1.35 }, { scale: 1, duration: 1, ease: 'expo.out', overwrite: true });
-    } else if (!e.target.closest('.row')) hidePreview();
+    } else if (!e.target.closest('.row[data-img]')) hidePreview();
   });
   $$('[data-magnetic]').forEach((el) => {
     const mxq = gsap.quickTo(el, 'x', { duration: 0.6, ease: 'elastic.out(1,0.5)' }), myq = gsap.quickTo(el, 'y', { duration: 0.6, ease: 'elastic.out(1,0.5)' });
@@ -299,10 +366,22 @@ if (fine && !reduced) {
     el.addEventListener('pointerleave', () => { mxq(0); myq(0); });
   });
   $$('.cap').forEach((el) => el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); el.style.setProperty('--mx', `${e.clientX - r.left}px`); el.style.setProperty('--my', `${e.clientY - r.top}px`); }));
-  $$('.clip').forEach((el) => {
-    el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); gsap.to(el, { rotateY: ((e.clientX - r.left) / r.width - 0.5) * 8, rotateX: -((e.clientY - r.top) / r.height - 0.5) * 8, transformPerspective: 900, duration: 0.5, ease: 'power3' }); });
-    el.addEventListener('pointerleave', () => gsap.to(el, { rotateX: 0, rotateY: 0, duration: 0.8, ease: 'elastic.out(1,0.6)' }));
+  clips.forEach((el, i) => {
+    el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); gsap.to(clipState[i], { hy: ((e.clientX - r.left) / r.width - 0.5) * 8, hx: -((e.clientY - r.top) / r.height - 0.5) * 8, duration: 0.5, ease: 'power3', overwrite: true, onUpdate: () => applyClip(i) }); });
+    el.addEventListener('pointerleave', () => gsap.to(clipState[i], { hx: 0, hy: 0, duration: 0.8, ease: 'elastic.out(1,0.6)', overwrite: true, onUpdate: () => applyClip(i) }));
   });
+  // Le nom et l'aperçu des projets s'inclinent dans l'espace avec la souris
+  const heroTitle = $('.hero__title');
+  gsap.set(heroTitle, { transformPerspective: 1200 });
+  const tiltY = gsap.quickTo(heroTitle, 'rotationY', { duration: 1.1, ease: 'power3' }), tiltX = gsap.quickTo(heroTitle, 'rotationX', { duration: 1.1, ease: 'power3' });
+  gsap.set(preview, { transformPerspective: 900 });
+  const prY = gsap.quickTo(preview, 'rotationY', { duration: 0.7, ease: 'power3' }), prX = gsap.quickTo(preview, 'rotationX', { duration: 0.7, ease: 'power3' });
+  let lastX2 = 0, lastY = 0, rest = 0;
+  window.addEventListener('pointermove', (e) => {
+    if (window.scrollY < window.innerHeight) { tiltY((e.clientX / window.innerWidth - 0.5) * 9); tiltX(-(e.clientY / window.innerHeight - 0.5) * 6); }
+    prY(gsap.utils.clamp(-28, 28, (e.clientX - lastX2) * 1.4)); prX(gsap.utils.clamp(-22, 22, -(e.clientY - lastY) * 1.4)); lastX2 = e.clientX; lastY = e.clientY;
+    clearTimeout(rest); rest = setTimeout(() => { prY(0); prX(0); }, 140);
+  }, { passive: true });
 }
 
 // ---------- Sous le capot ----------

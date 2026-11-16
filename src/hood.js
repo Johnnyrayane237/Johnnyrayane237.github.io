@@ -1,11 +1,15 @@
-// Section « Sous le capot » (Aiguilleur IA) et détails des fiches projet.
+// Section « Sous le capot » et détails des fiches projet.
 // Tout vient de la documentation des projets ; les données des démonstrations sont fictives et signalées.
+
+// Tuiles affichées dans la section, dans cet ordre. Les autres restent décrites plus bas
+// (et dans la fiche du projet) : il suffit d'ajouter leur identifiant ici pour les remontrer.
+export const featured = ['tower', 'watchdog', 'report', 'guards', 'bench'];
 
 export const hood = {
   fr: {
     label: '(04) Sous le capot',
-    title: "Trier un e-mail ne suffit pas. <em>Voici tout le reste.</em>",
-    intro: "Pour qu'une entreprise confie sa boîte contact@ à l'Aiguilleur IA, il faut des workflows qui surveillent, relancent, rendent des comptes et apprennent. Chaque tuile ci-dessous en est un.",
+    title: 'Automatiser ne suffit pas. <em>Il faut que ça tienne.</em>',
+    intro: "Un système qui travaille seul doit se surveiller, rendre des comptes et savoir s'arrêter. Cinq exemples tirés d'un même projet.",
     note: 'Animations de démonstration — cabinet fictif « Lisière Syndic ».',
     tiles: [
       { id: 'tower', size: 'xl', title: 'Tour de contrôle', text: "Chaque e-mail trié apparaît en direct : catégorie, urgence, qui s'en occupe. La tour garde une copie du journal, relue au plus toutes les 10 s, pour ne jamais dépasser le quota de Google (60 lectures par minute)." },
@@ -35,8 +39,8 @@ export const hood = {
   },
   en: {
     label: '(04) Under the hood',
-    title: 'Sorting an email is not enough. <em>Here is everything else.</em>',
-    intro: 'For a company to trust the AI Dispatcher with its contact@ inbox, it needs workflows that watch, follow up, report and learn. Each tile below is one of them.',
+    title: 'Automating is not enough. <em>It has to hold.</em>',
+    intro: 'A system that works on its own must watch itself, report back and know when to stop. Five examples from a single project.',
     note: 'Demo animations — fictional “Lisière Syndic” agency.',
     tiles: [
       { id: 'tower', size: 'xl', title: 'Control tower', text: 'Every sorted email shows up live: category, urgency, who handles it. The tower keeps a copy of the log, re-read at most every 10 s, so it never exceeds Google’s quota (60 reads per minute).' },

@@ -28,9 +28,9 @@ float snoise(vec3 v){
 
 const vertex = /* glsl */ `
 uniform float uTime; uniform float uMorph; uniform float uSize; uniform float uPixel;
-uniform vec3 uMouse; uniform float uMouseStrength; uniform float uIntro;
+uniform vec3 uMouse; uniform float uMouseStrength; uniform float uIntro; uniform float uVel;
 attribute vec3 aPlane; attribute float aRand;
-varying float vAlpha; varying float vTone;
+varying float vAlpha; varying float vTone; varying float vStretch;
 ${NOISE}
 void main(){
   vec3 s = position * uIntro;
@@ -45,20 +45,22 @@ void main(){
   world.xyz += normalize(d + 1e-4) * smoothstep(1.1, 0., dist) * .42 * uMouseStrength;
   vec4 mv = viewMatrix * world;
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = uSize * uPixel * (.55 + aRand * .9) / -mv.z;
+  // Défilement rapide : chaque point s'étire en traînée verticale, comme un flou de vitesse.
+  vStretch = 1. + uVel * (2.2 + aRand * 2.6);
+  gl_PointSize = uSize * uPixel * (.55 + aRand * .9) / -mv.z * vStretch;
   vAlpha = (.28 + .72 * (.5 + .5 * n)) * (1. - m * .35);
   vTone = aRand;
 }`;
 
 const fragment = /* glsl */ `
 uniform vec3 uColorA; uniform vec3 uColorB; uniform float uFade;
-varying float vAlpha; varying float vTone;
+varying float vAlpha; varying float vTone; varying float vStretch;
 void main(){
-  vec2 c = gl_PointCoord - .5; float d = length(c);
+  vec2 c = gl_PointCoord - .5; c.x *= vStretch; float d = length(c);
   if (d > .5) discard;
   float a = smoothstep(.5, .05, d);
   vec3 col = mix(uColorA, uColorB, step(.86, vTone));
-  gl_FragColor = vec4(col, a * vAlpha * uFade);
+  gl_FragColor = vec4(col, a * vAlpha * uFade / sqrt(vStretch));
 }`;
 
 export function initHero(canvas, { reduced = false } = {}) {
@@ -97,7 +99,7 @@ export function initHero(canvas, { reduced = false } = {}) {
 
   const uniforms = {
     uTime: { value: 0 }, uMorph: { value: 0 }, uSize: { value: mobile ? 26 : 30 }, uPixel: { value: pixel },
-    uMouse: { value: new Vector3(9, 9, 0) }, uMouseStrength: { value: 0 }, uIntro: { value: reduced ? 1 : 0.001 },
+    uMouse: { value: new Vector3(9, 9, 0) }, uMouseStrength: { value: 0 }, uIntro: { value: reduced ? 1 : 0.001 }, uVel: { value: 0 },
     uColorA: { value: new Color('#2F80FF') }, uColorB: { value: new Color('#EAF1FF') }, uFade: { value: 1 },
   };
   const mat = new ShaderMaterial({ vertexShader: vertex, fragmentShader: fragment, uniforms, transparent: true, depthWrite: false, blending: AdditiveBlending });
@@ -134,6 +136,14 @@ export function initHero(canvas, { reduced = false } = {}) {
     strength = 1;
   };
   window.addEventListener('pointermove', onMove, { passive: true });
+  // Sur téléphone, pas de souris : c'est l'inclinaison de l'appareil qui déplace la caméra.
+  const onTilt = (e) => {
+    if (e.gamma == null || e.beta == null) return;
+    ndc.x = Math.max(-1, Math.min(1, e.gamma / 28));
+    ndc.y = Math.max(-1, Math.min(1, (e.beta - 50) / 28));
+  };
+  const touchOnly = !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (touchOnly && !reduced) window.addEventListener('deviceorientation', onTilt, { passive: true });
 
   const resize = () => {
     const w = canvas.clientWidth || window.innerWidth;
@@ -146,7 +156,7 @@ export function initHero(canvas, { reduced = false } = {}) {
   window.addEventListener('resize', resize);
 
   let running = true, raf = 0, last = performance.now(), time = 0, rotY = 0;
-  const state = { morph: 0, fade: 1, scrollTilt: 0 };
+  const state = { morph: 0, fade: 1, scrollTilt: 0, vel: 0 };
 
   const frame = (now) => {
     raf = requestAnimationFrame(frame);
@@ -160,6 +170,7 @@ export function initHero(canvas, { reduced = false } = {}) {
     uniforms.uTime.value = time;
     uniforms.uMorph.value += (state.morph - uniforms.uMorph.value) * 0.08;
     uniforms.uFade.value = state.fade;
+    uniforms.uVel.value += (state.vel - uniforms.uVel.value) * 0.14; state.vel *= 0.9;
     glowMat.uniforms.uTime.value = time; glowMat.uniforms.uFade.value = state.fade * (1 - uniforms.uMorph.value * 0.85); eMat.uniforms.uFade.value = 0.35 + state.fade * 0.65;
     glow.scale.setScalar(1 + Math.sin(time * 0.6) * 0.04);
     camera.position.x += (ndc.x * 0.55 * (Math.abs(ndc.x) < 2 ? 1 : 0) - camera.position.x) * 0.04; camera.position.y += (ndc.y * 0.35 * (Math.abs(ndc.y) < 2 ? 1 : 0) - camera.position.y) * 0.04; camera.lookAt(0, 0, 0);
@@ -180,8 +191,9 @@ export function initHero(canvas, { reduced = false } = {}) {
     set morph(v) { state.morph = v; if (reduced) { uniforms.uMorph.value = v; renderer.render(scene, camera); } },
     set fade(v) { state.fade = v; },
     set tilt(v) { state.scrollTilt = v; },
+    set velocity(v) { state.vel = Math.max(state.vel, v); },
     play() { running = true; },
     pause() { running = false; },
-    destroy() { cancelAnimationFrame(raf); window.removeEventListener('pointermove', onMove); window.removeEventListener('resize', resize); renderer.dispose(); },
+    destroy() { cancelAnimationFrame(raf); window.removeEventListener('pointermove', onMove); window.removeEventListener('deviceorientation', onTilt); window.removeEventListener('resize', resize); renderer.dispose(); },
   };
 }

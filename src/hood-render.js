@@ -1,6 +1,6 @@
 // Rendu et animations de la section « Sous le capot ».
 import gsap from 'gsap';
-import { hood, features } from './hood.js';
+import { hood, features, featured } from './hood.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pad = (n) => String(n).padStart(2, '0');
@@ -55,7 +55,7 @@ export function hoodTexts(lang) { return hood[lang] || hood.fr; }
 
 export function renderHood(lang) {
   const H = hoodTexts(lang);
-  return H.tiles.map((t, i) => `<article class="tile tile--${t.size} tile--${t.id}">
+  return featured.map((id) => H.tiles.find((t) => t.id === id)).filter(Boolean).map((t, i) => `<article class="tile tile--${t.size} tile--${t.id}">
     <div class="tile__viz">${VIZ[t.id](H.viz[t.id])}</div>
     <div class="tile__txt"><span class="tile__n mono">${pad(i + 1)}</span><h3>${esc(t.title)}</h3><p>${esc(t.text)}</p></div>
   </article>`).join('');
@@ -83,7 +83,22 @@ export function initHood({ reduced, lang }) {
 
   // Apparition en cascade + projecteur sous la souris
   gsap.from(tiles, { y: 70, opacity: 0, clipPath: 'inset(18% 0 0 0 round 22px)', duration: 1.2, ease: 'expo.out', stagger: 0.07, scrollTrigger: { trigger: root, start: 'top 82%' } });
-  tiles.forEach((el) => el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); el.style.setProperty('--mx', `${e.clientX - r.left}px`); el.style.setProperty('--my', `${e.clientY - r.top}px`); }));
+  // Projecteur sous la souris, et chaque tuile s'incline dans l'espace : son écran flotte au-dessus du fond.
+  const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  tiles.forEach((el) => {
+    const viz = el.querySelector('.tile__viz');
+    const rx = fine && gsap.quickTo(el, 'rotationX', { duration: 0.7, ease: 'power3' }), ry = fine && gsap.quickTo(el, 'rotationY', { duration: 0.7, ease: 'power3' });
+    const vx = fine && gsap.quickTo(viz, 'x', { duration: 0.7, ease: 'power3' }), vy = fine && gsap.quickTo(viz, 'y', { duration: 0.7, ease: 'power3' });
+    if (fine) gsap.set(el, { transformPerspective: 1300 });
+    el.addEventListener('pointermove', (e) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${e.clientX - r.left}px`); el.style.setProperty('--my', `${e.clientY - r.top}px`);
+      if (!fine || document.documentElement.classList.contains('fx-off')) return;
+      const nx = (e.clientX - r.left) / r.width - 0.5, ny = (e.clientY - r.top) / r.height - 0.5;
+      ry(nx * 5.5); rx(-ny * 5.5); vx(nx * 12); vy(ny * 12);
+    });
+    if (fine) el.addEventListener('pointerleave', () => { rx(0); ry(0); vx(0); vy(0); });
+  });
 
   // Tour de contrôle : flux en direct
   const feed = root.querySelector('[data-feed]'), rows = H.viz.tower.feed;
@@ -92,8 +107,8 @@ export function initHood({ reduced, lang }) {
   let fi = 0, clock = 9 * 60 + 41;
   const hhmm = (m) => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
   const rowHTML = ([h, c, w, t]) => `<li class="t-${t || 'n'}"><span class="mono">${h}</span><b>${esc(c)}</b><span>${esc(w)}</span></li>`;
-  rows.slice(0, MAX).forEach((r) => feed.insertAdjacentHTML('beforeend', rowHTML(r)));
-  setInterval(() => {
+  if (feed) rows.slice(0, MAX).forEach((r) => feed.insertAdjacentHTML('beforeend', rowHTML(r)));
+  if (feed) setInterval(() => {
     if (!live(feed)) return;
     const r = rows[fi++ % rows.length];
     clock += 1 + (fi % 3);
@@ -109,57 +124,72 @@ export function initHood({ reduced, lang }) {
   // Chien de garde : contrôles en séquence + compte à rebours
   const checks = [...root.querySelectorAll('.wd__checks li')], timer = root.querySelector('[data-timer]');
   let ci = 0, secs = 900;
-  setInterval(() => {
-    if (!live(timer)) return;
-    secs = secs <= 1 ? 900 : secs - 1;
-    timer.textContent = `${pad(Math.floor(secs / 60))}:${pad(secs % 60)}`;
-  }, 1000);
-  setInterval(() => {
-    if (!live(timer)) return;
-    if (ci === checks.length) { checks.forEach((c) => c.classList.remove('is-ok')); ci = 0; return; }
-    checks[ci++].classList.add('is-ok');
-  }, 700);
+  if (timer) {
+    setInterval(() => {
+      if (!live(timer)) return;
+      secs = secs <= 1 ? 900 : secs - 1;
+      timer.textContent = `${pad(Math.floor(secs / 60))}:${pad(secs % 60)}`;
+    }, 1000);
+    setInterval(() => {
+      if (!live(timer)) return;
+      if (ci === checks.length) { checks.forEach((c) => c.classList.remove('is-ok')); ci = 0; return; }
+      checks[ci++].classList.add('is-ok');
+    }, 700);
+  }
 
+  // Les boucles ci-dessous ne démarrent que si leur tuile est affichée (voir « featured » dans hood.js).
+  const loops = [];
   // Relance des urgences : 30 minutes en accéléré
   const cd = root.querySelector('[data-countdown]'), ring = root.querySelector('.rl__clock .fg'), rl = root.querySelector('.rl');
-  const C = 2 * Math.PI * 34; ring.style.strokeDasharray = C;
-  const rlTl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: 0.6 })
-    .fromTo(ring, { strokeDashoffset: 0 }, { strokeDashoffset: C, duration: 6, ease: 'none', onUpdate() { const left = Math.round(1800 * (1 - this.progress())); cd.textContent = `${pad(Math.floor(left / 60))}:${pad(left % 60)}`; } })
-    .add(() => rl.classList.add('is-fired'))
-    .to({}, { duration: 1.6 })
-    .add(() => rl.classList.remove('is-fired'));
+  if (rl) {
+    const C = 2 * Math.PI * 34; ring.style.strokeDasharray = C;
+    loops.push([rl, gsap.timeline({ repeat: -1, paused: true, repeatDelay: 0.6 })
+      .fromTo(ring, { strokeDashoffset: 0 }, { strokeDashoffset: C, duration: 6, ease: 'none', onUpdate() { const left = Math.round(1800 * (1 - this.progress())); cd.textContent = `${pad(Math.floor(left / 60))}:${pad(left % 60)}`; } })
+      .add(() => rl.classList.add('is-fired'))
+      .to({}, { duration: 1.6 })
+      .add(() => rl.classList.remove('is-fired'))]);
+  }
   // Échéances : on compte les jours ouvrés
   const days = [...root.querySelectorAll('.dl__d')];
-  const dlTl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: 1 });
-  days.forEach((d, i) => { if (!d.classList.contains('is-off') && !d.classList.contains('is-hol')) dlTl.add(() => d.classList.add('is-count'), i * 0.45); });
-  dlTl.add(() => days.forEach((d) => d.classList.remove('is-count')), '+=1.4');
+  if (days.length) {
+    const dlTl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: 1 });
+    days.forEach((d, i) => { if (!d.classList.contains('is-off') && !d.classList.contains('is-hol')) dlTl.add(() => d.classList.add('is-count'), i * 0.45); });
+    dlTl.add(() => days.forEach((d) => d.classList.remove('is-count')), '+=1.4');
+    loops.push([days[0], dlTl]);
+  }
   // Garde-fous : chaque règle bloque tour à tour, l'IBAN se masque
   const rules = [...root.querySelectorAll('.gd__rules li')], iban = root.querySelector('[data-iban]');
-  const fullIban = iban.textContent, masked = fullIban.replace(/^(\S+)(.*)(\s\S+)$/, (m, a, mid, z) => a + mid.replace(/\d/g, '•') + z);
-  const gdTl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: 0.8 });
-  rules.forEach((r, i) => gdTl.add(() => { rules.forEach((x) => x.classList.remove('is-hit')); r.classList.add('is-hit'); }, i * 0.9));
-  gdTl.add(() => { rules.forEach((x) => x.classList.remove('is-hit')); }, '+=0.9');
-  gdTl.add(() => { iban.textContent = masked; iban.classList.add('is-masked'); }, 0.5).add(() => { iban.textContent = fullIban; iban.classList.remove('is-masked'); }, '+=0.2');
+  if (iban) {
+    const fullIban = iban.textContent, masked = fullIban.replace(/^(\S+)(.*)(\s\S+)$/, (m, a, mid, z) => a + mid.replace(/\d/g, '•') + z);
+    const gdTl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: 0.8 });
+    rules.forEach((r, i) => gdTl.add(() => { rules.forEach((x) => x.classList.remove('is-hit')); r.classList.add('is-hit'); }, i * 0.9));
+    gdTl.add(() => { rules.forEach((x) => x.classList.remove('is-hit')); }, '+=0.9');
+    gdTl.add(() => { iban.textContent = masked; iban.classList.add('is-masked'); }, 0.5).add(() => { iban.textContent = fullIban; iban.classList.remove('is-masked'); }, '+=0.2');
+    loops.push([iban, gdTl]);
+  }
   // Terminal du banc d'essai : frappe ligne par ligne
-  const term = root.querySelector('[data-term]'), lines = JSON.parse(term.dataset.lines);
-  const tmTl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: 1.6 });
-  tmTl.add(() => { term.innerHTML = ''; });
-  lines.forEach((l, i) => {
-    const o = { n: 0 };
-    tmTl.add(() => term.insertAdjacentHTML('beforeend', `<p class="${l.startsWith('$') ? 'is-cmd' : l.startsWith('●') ? 'is-rec' : 'is-out'}"></p>`));
-    tmTl.to(o, { n: l.length, duration: l.startsWith('$') ? l.length * 0.035 : 0.25, ease: 'none', onUpdate: () => { term.children[i].textContent = l.slice(0, Math.round(o.n)); } });
-    tmTl.to({}, { duration: 0.35 });
-  });
+  const term = root.querySelector('[data-term]');
+  if (term) {
+    const lines = JSON.parse(term.dataset.lines);
+    const tmTl = gsap.timeline({ repeat: -1, paused: true, repeatDelay: 1.6 });
+    tmTl.add(() => { term.innerHTML = ''; });
+    lines.forEach((l, i) => {
+      const o = { n: 0 };
+      tmTl.add(() => term.insertAdjacentHTML('beforeend', `<p class="${l.startsWith('$') ? 'is-cmd' : l.startsWith('●') ? 'is-rec' : 'is-out'}"></p>`));
+      tmTl.to(o, { n: l.length, duration: l.startsWith('$') ? l.length * 0.035 : 0.25, ease: 'none', onUpdate: () => { term.children[i].textContent = l.slice(0, Math.round(o.n)); } });
+      tmTl.to({}, { duration: 0.35 });
+    });
+    loops.push([term, tmTl]);
+  }
 
-  const loops = [[rl, rlTl], [days[0], dlTl], [iban, gdTl], [term, tmTl]];
   setInterval(() => loops.forEach(([el, tl]) => { if (live(el)) { if (tl.paused()) tl.play(); } else if (!tl.paused()) tl.pause(); }), 300);
 }
 
 function fillStatic(root, H) {
   const feed = root.querySelector('[data-feed]');
-  feed.innerHTML = H.viz.tower.feed.slice(0, 7).map(([h, c, w, t]) => `<li class="t-${t || 'n'}"><span class="mono">${h}</span><b>${esc(c)}</b><span>${esc(w)}</span></li>`).join('');
+  if (feed) feed.innerHTML = H.viz.tower.feed.slice(0, 7).map(([h, c, w, t]) => `<li class="t-${t || 'n'}"><span class="mono">${h}</span><b>${esc(c)}</b><span>${esc(w)}</span></li>`).join('');
   root.querySelectorAll('.wd__checks li').forEach((c) => c.classList.add('is-ok'));
   const term = root.querySelector('[data-term]');
-  term.innerHTML = JSON.parse(term.dataset.lines).map((l) => `<p class="${l.startsWith('$') ? 'is-cmd' : l.startsWith('●') ? 'is-rec' : 'is-out'}">${esc(l)}</p>`).join('');
+  if (term) term.innerHTML = JSON.parse(term.dataset.lines).map((l) => `<p class="${l.startsWith('$') ? 'is-cmd' : l.startsWith('●') ? 'is-rec' : 'is-out'}">${esc(l)}</p>`).join('');
   root.querySelectorAll('.dl__d:not(.is-off):not(.is-hol)').forEach((d) => d.classList.add('is-count'));
 }

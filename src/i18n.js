@@ -25,9 +25,9 @@ export const content = {
       'work.title': 'Des systèmes <em>qui tournent,</em> pas des maquettes.',
       'work.hint': 'Cliquer pour ouvrir le projet',
       'pipeline.label': '(03) Pipeline en direct',
-      'pipeline.title': "Un e-mail traverse <em>l'Aiguilleur IA.</em>",
-      'pipeline.intro': "Fais défiler : chaque étape s'allume comme dans n8n. Un seul appel à Claude, une sortie JSON imposée, et une personne valide avant tout envoi.",
-      'pipeline.note': 'Exemple fictif, inspiré des 32 e-mails de test.',
+      'pipeline.title': 'Un e-mail entre. <em>À vous de valider.</em>',
+      'pipeline.intro': "Faites défiler : le message avance d'étape en étape, comme dans n8n. Un seul appel à Claude, une sortie JSON imposée, et rien ne part sans le clic d'une personne. Ici, cette personne, c'est vous.",
+      'pipeline.note': "Exemple fictif tiré d'un de mes projets — aucun e-mail n'est réellement envoyé.",
       'motion.label': '(05) Motion design',
       'motion.title': 'Du mouvement <em>écrit en code.</em>',
       'motion.intro': "Animé en HTML et GSAP avec HyperFrames, voix off ElevenLabs, montage et son avec FFmpeg — le tout piloté avec Claude Code. Le film DT Design est publié avec l'accord de la marque.",
@@ -53,7 +53,7 @@ export const content = {
       { n: 5, suffix: '', label: 'systèmes n8n construits en 2026' },
       { n: 32, suffix: '', label: "workflows dans l'agence de doublage" },
       { n: 102, suffix: '', label: 'tests automatisés sur un seul projet' },
-      { n: 32, suffix: '/32', label: "e-mails de test bien classés par l'Aiguilleur" },
+      { n: 13, suffix: '/13', label: 'candidatures correctement vérifiées par JobHunter' },
     ],
     projects: [
       {
@@ -131,6 +131,8 @@ export const content = {
         '09:41:10  Telegram → équipe gestion : « Je m\'en occupe ? »',
         '09:41:10  journal Google Sheets mis à jour',
       ],
+      // Étape où une personne valide : dans la démonstration, c'est le visiteur.
+      human: { index: 4, btn: "Valider l'envoi", done: 'validé par vous ✓', log: '09:42:16  validé par une personne — vous → réponse envoyée' },
     },
     motion: [
       { id: 'dt-motion', src: 'media/dt-motion-16x9.mp4', poster: 'media/dt-motion.webp', ratio: '16/9', title: 'DT Design — film de marque', meta: '16:9 · extrait 22 s' },
@@ -177,9 +179,9 @@ export const content = {
       'work.title': 'Systems <em>that run,</em> not mockups.',
       'work.hint': 'Click to open the project',
       'pipeline.label': '(03) Live pipeline',
-      'pipeline.title': 'An email travels through <em>the AI Dispatcher.</em>',
-      'pipeline.intro': 'Scroll: each step lights up like in n8n. One single Claude call, an enforced JSON output, and a person approves before anything is sent.',
-      'pipeline.note': 'Fictional example, based on the 32 test emails.',
+      'pipeline.title': 'An email comes in. <em>You approve.</em>',
+      'pipeline.intro': 'Scroll: the message moves step by step, like in n8n. One single Claude call, an enforced JSON output, and nothing is sent without a person’s click. Here, that person is you.',
+      'pipeline.note': 'Fictional example from one of my projects — no email is actually sent.',
       'motion.label': '(05) Motion design',
       'motion.title': 'Motion <em>written in code.</em>',
       'motion.intro': 'Animated in HTML and GSAP with HyperFrames, ElevenLabs voice-over, editing and sound with FFmpeg — all steered with Claude Code. The DT Design film is shown with the brand’s consent.',
@@ -205,7 +207,7 @@ export const content = {
       { n: 5, suffix: '', label: 'n8n systems built in 2026' },
       { n: 32, suffix: '', label: 'workflows in the dubbing agency' },
       { n: 102, suffix: '', label: 'automated tests on a single project' },
-      { n: 32, suffix: '/32', label: 'test emails routed correctly by the Dispatcher' },
+      { n: 13, suffix: '/13', label: 'applications reviewed correctly by JobHunter' },
     ],
     projects: [
       {
@@ -283,6 +285,7 @@ export const content = {
         '09:41:10  Telegram → property team: “Shall I take it?”',
         '09:41:10  Google Sheets log updated',
       ],
+      human: { index: 4, btn: 'Approve & send', done: 'approved by you ✓', log: '09:42:16  approved by a person — you → reply sent' },
     },
     motion: [
       { id: 'dt-motion', src: 'media/dt-motion-16x9.mp4', poster: 'media/dt-motion.webp', ratio: '16/9', title: 'DT Design — brand film', meta: '16:9 · 22 s excerpt' },
