@@ -22,7 +22,7 @@ run('git config user.name "Johanne Pamegne"', 'dist');
 run('git add -A', 'dist');
 const date = new Date().toISOString().slice(0, 16).replace('T', ' ');
 try {
-  run(`git commit -q -m "Publication du portfolio (${date})" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`, 'dist');
+  run(`git commit -q -m "Publication du portfolio (${date})" -m "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>"`, 'dist');
 } catch { console.log('Aucun changement à publier.'); }
 run('git push -u origin main --force', 'dist');
 console.log('\nGitHub Pages : https://johnnyrayane237.github.io/ (à jour dans 1 à 2 minutes)');

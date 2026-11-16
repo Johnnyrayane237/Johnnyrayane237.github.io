@@ -3,12 +3,13 @@ import '@fontsource/instrument-serif/400.css';
 import '@fontsource/instrument-serif/400-italic.css';
 import '@fontsource-variable/jetbrains-mono';
 import './styles.css';
+import './machine.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { content, contact } from './i18n.js';
-import { initHero } from './hero-gl.js';
-import { initExtras } from './extras.js';
+import { initWorld, K } from './world.js';
+import { initExtras, scramble } from './extras.js';
 import { renderHood, hoodTexts, renderFeatures, initHood } from './hood-render.js';
 import { initPipeline3D } from './pipeline-3d.js';
 
@@ -50,9 +51,18 @@ const pad = (n) => String(n).padStart(2, '0');
 
 $('#stats').innerHTML = L.stats.map((s) => `<div class="stat"><div class="stat__n"><span data-count="${s.n}">0</span><small>${esc(s.suffix)}</small></div><p>${esc(s.label)}</p></div>`).join('');
 
-$('#workList').innerHTML = L.projects.map((p, i) => `<li><button class="row" type="button" data-project="${p.id}" data-cursor="view"${p.img ? ` data-img="${p.img}"` : ''}>
-  <span class="row__n mono">${pad(i + 1)}</span><span class="row__title">${esc(p.title)}</span><span class="row__sub">${esc(p.sub)}</span>
-  <span class="row__tags">${p.tags.map((t) => `<i class="tag">${esc(t)}</i>`).join('')}</span><span class="row__arrow" aria-hidden="true">→</span></button></li>`).join('');
+// Projets : un écran par projet, la sculpture 3D change derrière le texte.
+const NP = L.projects.length;
+$('#workStage').innerHTML = L.projects.map((p, i) => `<article class="slide" data-project="${p.id}" style="--c:${p.color}" aria-hidden="true">
+  <p class="slide__n mono"><b>${pad(i + 1)}</b> / ${pad(NP)} — ${esc(p.year)}</p>
+  <h3 class="slide__title">${esc(p.title)}</h3>
+  <p class="slide__sub">${esc(p.sub)}</p>
+  <p class="slide__summary">${esc(p.summary)}</p>
+  <div class="slide__metrics">${p.metrics.slice(0, 3).map(([b, t]) => `<div><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('')}</div>
+  <div class="slide__foot"><button class="btn btn--primary slide__open" type="button" data-open="${p.id}" data-magnetic><span class="btn__fill"></span><span class="btn__label">${esc(T['work.open'])}</span><span class="btn__arrow">→</span></button>
+    <span class="slide__tags">${p.tags.map((t) => `<i class="tag">${esc(t)}</i>`).join('')}</span></div></article>`).join('');
+$('#workOdo').innerHTML = L.projects.map((_, i) => `<span>${pad(i + 1)}</span>`).join('');
+$('#workRail').innerHTML = L.projects.map((p, i) => `<button type="button" data-go="${i}"><i>${pad(i + 1)}</i><span>${esc(p.short)}</span></button>`).join('') + '<span class="work__bar"><i id="workBar"></i></span>';
 
 const HUMAN = L.pipeline.human; // l'étape où une personne valide — ici, le visiteur
 $('#pipelineGraph').innerHTML = L.pipeline.nodes.map(([t, d], i) => `<div class="node${i === HUMAN.index ? ' node--human' : ''}"><div class="node__box"><div class="node__i mono"><span>${pad(i + 1)}</span><b></b></div><div class="node__t">${esc(t)}</div><div class="node__d">${esc(d)}</div>${i === HUMAN.index ? `<button class="node__ok mono" type="button">${esc(HUMAN.btn)}</button>` : ''}</div><i class="node__link"></i></div>`).join('');
@@ -92,7 +102,7 @@ $$('[data-split="chars"]').forEach((el) => {
   const html = [...el.childNodes].map((n) => (n.nodeType === 3 ? [...n.textContent].map((c) => `<span class="char">${c}</span>`).join('') : `<span class="char">${n.outerHTML}</span>`)).join('');
   el.innerHTML = html;
 });
-$$('.title, .contact__title').forEach((el) => splitWords(el));
+$$('.title, .contact__title, .slide__title').forEach((el) => splitWords(el));
 splitWords($('#manifestoText'), 'mw');
 
 // ---------- Défilement fluide ----------
@@ -107,46 +117,74 @@ if (!reduced) {
 const scrollToTarget = (hash) => { const el = $(hash); if (!el) return; if (lenis) lenis.scrollTo(el, { duration: 1.6 }); else el.scrollIntoView(); };
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a[href^="#"]'); if (!a) return;
-  e.preventDefault(); closeMenu(); closeCase(); scrollToTarget(a.getAttribute('href'));
+  e.preventDefault(); closeMenu(); closeCase(); closeQuick(); scrollToTarget(a.getAttribute('href'));
 });
 
 // ---------- Scène 3D ----------
-let hero = null;
-try { hero = initHero($('#gl'), { reduced }); } catch { $('#gl').remove(); }
+// Un seul monde : le nuage de particules prend la forme de chaque étape du site.
+let hero = null, introPlaying = false;
+try { hero = initWorld($('#gl'), { reduced, onQuality: (lvl) => { if (lvl >= 2) window.dispatchEvent(new CustomEvent('world:slow')); } }); } catch { $('#gl').remove(); }
+
+// ---------- Le voyage : chaque portion de page fait avancer le monde d'une étape ----------
+const segs = [];
+const seg = (cfg, map) => { const st = ScrollTrigger.create(cfg); segs.push({ st, map }); return st; };
+function syncWorld() {
+  if (!hero || introPlaying) return;
+  let k = K.sphere;
+  segs.forEach(({ st, map }) => { k += map ? map(st.progress) : st.progress; });
+  hero.k = k;
+}
+// Dans la scène des projets, la forme reste stable puis se transforme au milieu du passage.
+const hold = (p) => { const x = p * (NP - 1), i = Math.min(NP - 2, Math.floor(x)), f = Math.min(1, Math.max(0, (x - i - 0.22) / 0.56)); return i + f * f * (3 - 2 * f); };
 
 // ---------- Introduction ----------
+let seen = false;
+try { seen = sessionStorage.getItem('seen') === '1'; sessionStorage.setItem('seen', '1'); } catch { /* stockage indisponible */ }
+function reveal(at = 0) {
+  return gsap.timeline({ defaults: { ease: 'expo.out' } })
+    .fromTo('.hero__line .char', { yPercent: 120, rotate: 6, rotateX: -85, transformPerspective: 700 }, { yPercent: 0, rotate: 0, rotateX: 0, duration: 1.5, stagger: 0.035 }, at)
+    .fromTo('.hero__top > *, .hero__bottom > *', { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 1.1, stagger: 0.08 }, at + 0.55)
+    .fromTo('.header > *', { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 1, stagger: 0.08 }, at + 0.45)
+    .from('.hero__bottom', { '--line': 0, duration: 1 }, at + 0.45);
+}
+// Le nuage arrive de loin, écrit le nom en points de lumière, puis se referme en sphère.
 function intro() {
   document.body.classList.remove('is-loading');
-  lenis?.start();
-  const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-  if (hero) tl.to(hero.uniforms.uIntro, { value: 1, duration: 2.4, ease: 'expo.out' }, 0);
-  tl.from('.hero__line .char', { yPercent: 120, rotate: 6, rotateX: -85, transformPerspective: 700, duration: 1.5, stagger: 0.035 }, 0.1)
-    .from('.hero__top > *, .hero__bottom > *', { y: 26, opacity: 0, duration: 1.1, stagger: 0.08 }, 0.7)
-    .from('.header > *', { y: -30, opacity: 0, duration: 1, stagger: 0.08 }, 0.6)
-    .from('.hero__bottom', { '--line': 0, duration: 1 }, 0.6);
-  ScrollTrigger.refresh();
+  if (!hero) { lenis?.start(); reveal(); ScrollTrigger.refresh(); return; }
+  introPlaying = true;
+  const o = { k: K.cloud };
+  const set = () => { hero.k = o.k; };
+  gsap.timeline()
+    .to(o, { k: K.name, duration: 1.7, ease: 'power3.out', onUpdate: set })
+    .to(o, { k: K.sphere, duration: 1.7, ease: 'power2.inOut', onUpdate: set }, '+=0.55')
+    .add(() => { reveal(); lenis?.start(); }, '-=1.25')
+    .add(() => { introPlaying = false; syncWorld(); ScrollTrigger.refresh(); });
 }
-if (skipIntro) {
-  $('#loader').remove(); document.body.classList.remove('is-loading');
-  if (hero) hero.uniforms.uIntro.value = 1;
+if (skipIntro || seen) {
+  $('#loader').remove(); document.body.classList.remove('is-loading'); lenis?.start();
+  hero?.jump(K.sphere);
+  if (!skipIntro) reveal(0.1);
 } else {
+  // Le nom et l'en-tête restent cachés tant que les particules n'ont pas écrit le nom.
+  gsap.set('.hero__line .char', { yPercent: 120 });
+  gsap.set('.hero__top > *, .hero__bottom > *, .header > *', { opacity: 0 });
   const count = { v: 0 };
-  const tl = gsap.timeline({ onComplete: intro });
-  tl.to('.loader__log li', { opacity: 1, y: 0, duration: 0.4, stagger: 0.32, ease: 'power2.out' }, 0.1)
-    .to(count, { v: 100, duration: 1.9, ease: 'power2.inOut', onUpdate: () => { $('#loaderCount').textContent = String(Math.round(count.v)).padStart(3, '0'); } }, 0)
-    .to('#loaderBar', { scaleX: 1, duration: 1.9, ease: 'power2.inOut' }, 0)
-    .to('.loader__count, .loader__log, .loader__name', { yPercent: -40, opacity: 0, duration: 0.6, ease: 'power3.in', stagger: 0.04 }, '+=0.15')
-    .to('#loader', { clipPath: 'inset(0 0 100% 0)', duration: 1, ease: 'expo.inOut' }, '-=0.25')
+  gsap.timeline()
+    .to('.loader__log li', { opacity: 1, y: 0, duration: 0.3, stagger: 0.22, ease: 'power2.out' }, 0.05)
+    .to(count, { v: 100, duration: 1.4, ease: 'power2.inOut', onUpdate: () => { $('#loaderCount').textContent = String(Math.round(count.v)).padStart(3, '0'); } }, 0)
+    .to('#loaderBar', { scaleX: 1, duration: 1.4, ease: 'power2.inOut' }, 0)
+    .to('.loader__count, .loader__log, .loader__name', { yPercent: -40, opacity: 0, duration: 0.5, ease: 'power3.in', stagger: 0.04 }, '+=0.1')
+    .add(intro, '-=0.1')
+    .to('#loader', { clipPath: 'inset(0 0 100% 0)', duration: 0.9, ease: 'expo.inOut' }, '-=0.1')
     .set('#loader', { display: 'none' });
 }
 
 // ---------- Animations au défilement ----------
 if (!reduced) {
-  // Sphère -> réseau, puis retour en sphère au contact
+  // Accueil → manifeste → premier projet (la suite du voyage est ajoutée plus bas, dans l'ordre de la page)
   if (hero) {
-    ScrollTrigger.create({ trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true, onUpdate: (s) => { hero.morph = s.progress; hero.tilt = s.progress; hero.fade = 1 - s.progress * 0.55; } });
-    ScrollTrigger.create({ trigger: '#manifeste', start: 'top 60%', endTrigger: '#contact', end: 'top 80%', onEnter: () => { hero.fade = 0.3; }, onLeaveBack: () => { hero.fade = 0.45; } });
-    ScrollTrigger.create({ trigger: '#contact', start: 'top 75%', end: 'bottom bottom', scrub: true, onUpdate: (s) => { hero.morph = 1 - s.progress; hero.tilt = 1 - s.progress; hero.fade = 0.3 + s.progress * 0.6; } });
+    seg({ trigger: '.hero', start: 'top top', end: 'bottom top' });
+    seg({ trigger: '#travaux', start: 'top 75%', endTrigger: '#workPin', end: 'top top' });
   }
   gsap.to('.hero__title', { yPercent: -18, scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
   gsap.to('.hero__line--right', { xPercent: -6, scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
@@ -154,7 +192,10 @@ if (!reduced) {
   // Bandeau : vitesse liée au défilement
   const track = $('#marquee'); track.innerHTML += track.innerHTML;
   let mx = 0, speed = 1;
-  ScrollTrigger.create({ onUpdate: (s) => { const v = s.getVelocity(); speed = 1 + Math.min(Math.abs(v) / 220, 9) * (s.direction || 1); if (hero) hero.velocity = Math.min(Math.abs(v) / 3200, 1); } });
+  // « end: max » doit être écrit en toutes lettres : sinon la fin est calculée avant l'allongement des sections épinglées.
+  ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => { const v = s.getVelocity(); speed = 1 + Math.min(Math.abs(v) / 220, 9) * (s.direction || 1); if (hero) hero.velocity = Math.min(Math.abs(v) / 3200, 1); } });
+  // Le monde suit le défilement à chaque image, quel que soit l'ordre de mise à jour des sections.
+  gsap.ticker.add(syncWorld);
   gsap.ticker.add(() => { mx -= speed * 0.9; speed += (1 - speed) * 0.06; const half = track.scrollWidth / 2; if (mx <= -half) mx += half; if (mx > 0) mx -= half; track.style.transform = `translate3d(${mx}px,0,0)`; });
 
   // Manifeste : les mots s'allument
@@ -174,7 +215,6 @@ if (!reduced) {
   gsap.from('.stat', { y: 40, opacity: 0, rotateX: -70, transformPerspective: 800, transformOrigin: '50% 0%', duration: 1.1, stagger: 0.09, ease: 'expo.out', scrollTrigger: { trigger: '#stats', start: 'top 88%' } });
 
   // Listes : chaque bloc bascule dans la profondeur en arrivant
-  gsap.from('#workList li', { y: 60, opacity: 0, rotateX: -32, transformPerspective: 1100, transformOrigin: '50% 100%', duration: 1.1, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '#workList', start: 'top 85%' } });
   gsap.from('.cap', { y: 50, opacity: 0, rotateX: -55, transformPerspective: 900, transformOrigin: '50% 0%', duration: 1.2, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '#caps', start: 'top 85%' } });
   $$('.step').forEach((el) => gsap.from(el, { y: 34, opacity: 0, rotateX: -40, transformPerspective: 900, transformOrigin: '50% 0%', duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 92%' } }));
   // Les quatre pages se déplient en éventail
@@ -183,8 +223,48 @@ if (!reduced) {
   gsap.from('.contact__text, .contact__actions > *, .contact__list > div', { y: 30, opacity: 0, duration: 1, stagger: 0.06, ease: 'expo.out', scrollTrigger: { trigger: '.contact__text', start: 'top 92%' } });
 
   // En-tête : se cache en descendant
-  ScrollTrigger.create({ start: 200, onUpdate: (s) => $('#header').classList.toggle('is-hidden', s.direction === 1 && !menuOpen) });
+  ScrollTrigger.create({ start: 200, end: 'max', onUpdate: (s) => $('#header').classList.toggle('is-hidden', s.direction === 1 && !menuOpen) });
 }
+
+// ---------- Projets : scène épinglée, un projet par écran ----------
+const slides = $$('.slide'), railBtns = $$('#workRail button'), odo = $('#workOdo'), workBar = $('#workBar'), workPin = $('#workPin');
+const partsOf = (sl) => [...sl.children];
+let curSlide = -1, workST = null;
+function setSlide(i) {
+  if (i === curSlide) return;
+  const dir = i > curSlide ? 1 : -1, prev = slides[curSlide], next = slides[i]; curSlide = i;
+  railBtns.forEach((b, j) => { b.classList.toggle('is-active', j === i); b.classList.toggle('is-done', j < i); b.setAttribute('aria-current', j === i ? 'true' : 'false'); });
+  workPin.style.setProperty('--c', L.projects[i].color);
+  slides.forEach((s, j) => s.setAttribute('aria-hidden', j === i ? 'false' : 'true'));
+  gsap.to(odo, { yPercent: (-i * 100) / NP, duration: 0.9, ease: 'expo.inOut', overwrite: true });
+  if (prev) {
+    gsap.killTweensOf(partsOf(prev));
+    gsap.to(partsOf(prev), { y: -30 * dir, opacity: 0, filter: 'blur(8px)', duration: 0.34, ease: 'power2.in', stagger: 0.02, onComplete: () => { if (slides[curSlide] !== prev) prev.classList.remove('is-active'); } });
+  }
+  next.classList.add('is-active'); gsap.killTweensOf(partsOf(next));
+  gsap.fromTo(partsOf(next), { y: 54 * dir, opacity: 0, filter: 'blur(10px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.95, ease: 'expo.out', stagger: 0.055, delay: prev ? 0.16 : 0, clearProps: 'filter' });
+  gsap.fromTo($$('.slide__title .w > span', next), { yPercent: 115 * dir }, { yPercent: 0, duration: 1.1, ease: 'expo.out', stagger: 0.04, delay: prev ? 0.2 : 0.05, overwrite: true });
+  $$('.slide__metrics b', next).forEach((el, j) => gsap.delayedCall(0.3 + j * 0.09, () => scramble(el, 0.7)));
+}
+if (reduced) {
+  // Sans animation : les six projets s'affichent simplement l'un sous l'autre.
+  $('#travaux').classList.add('work--static');
+  slides.forEach((s) => { s.classList.add('is-active'); s.setAttribute('aria-hidden', 'false'); });
+} else {
+  setSlide(0);
+  workST = seg({ trigger: workPin, start: 'top top', end: () => `+=${Math.round(window.innerHeight * 0.85 * (NP - 1))}`, pin: true, scrub: true, invalidateOnRefresh: true,
+    onUpdate: (s) => { setSlide(Math.round(s.progress * (NP - 1))); workBar.style.transform = `scaleX(${s.progress})`; } }, hold);
+  // Suite du voyage : machine (fond calme) → capacités (constellation) → parcours (hélice) → contact (sphère)
+  seg({ trigger: '.pipeline', start: 'top bottom', end: 'top top' });
+  seg({ trigger: '#capacites', start: 'top bottom', end: 'top 25%' });
+  seg({ trigger: '#parcours', start: 'top bottom', end: 'top 25%' });
+  seg({ trigger: '#contact', start: 'top 80%', end: 'bottom bottom' });
+}
+$('#workRail').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-go]'); if (!b || !workST) return;
+  const y = workST.start + (workST.end - workST.start) * (+b.dataset.go / (NP - 1));
+  if (lenis) lenis.scrollTo(y, { duration: 1.2 }); else window.scrollTo(0, y);
+});
 
 // ---------- Pipeline ----------
 const pipelineEl = $('.pipeline'), nodes = $$('.node'), logs = $$('#pipelineLog p:not(.is-human)'), humanLog = $('#pipelineLog .is-human');
@@ -218,9 +298,8 @@ else {
     try { pipe3d = initPipeline3D({ section: pipelineEl, mount: $('#pipelineGraph'), labels: nodes }); } catch { pipe3d = null; pipelineEl.classList.remove('is-3d'); }
     if (pipe3d && validated) pipe3d.validate();
     const drive = (p) => setPipeline(pipe3d ? pipe3d.setProgress(p) / nodes.length : p * 1.08);
-    const fxOff = () => document.documentElement.classList.contains('fx-off');
     ScrollTrigger.create({ trigger: '.pipeline__pin', start: 'top top', end: pipe3d ? '+=3000' : '+=2400', pin: true, scrub: 0.5, onUpdate: (s) => drive(s.progress),
-      onToggle: (s) => { if (!hero || !pipe3d) return; if (s.isActive) hero.pause(); else if (!fxOff()) hero.play(); } });
+      onToggle: (s) => { if (!hero || !pipe3d) return; if (s.isActive) hero.pause(); else hero.play(); } });
     drive(0);
     // Bande de vidéos horizontale, en mur courbe
     const reel = $('#reel');
@@ -235,18 +314,17 @@ else {
     };
     gsap.to(reel, { x: () => -dist(), ease: 'none', onUpdate: curve, scrollTrigger: { trigger: reel, start: 'center center', end: () => `+=${dist()}`, pin: '.motion', scrub: 0.6, invalidateOnRefresh: true, onRefresh: curve } });
     curve();
-    return () => { pipe3d?.destroy(); pipe3d = null; wall = false; clipState.forEach((s, i) => { s.ry = 0; s.z = 0; applyClip(i); }); if (hero && !fxOff()) hero.play(); };
+    return () => { pipe3d?.destroy(); pipe3d = null; wall = false; clipState.forEach((s, i) => { s.ry = 0; s.z = 0; applyClip(i); }); if (hero) hero.play(); };
   });
   // Téléphone : la même machine 3D, en version allégée, et le mur de vidéos courbe au glissement du doigt.
   mm.add('(max-width: 760px)', () => {
-    const fxOff = () => document.documentElement.classList.contains('fx-off');
     gsap.from('.pipeline .w > span', { yPercent: 115, duration: 1.2, ease: 'expo.out', stagger: 0.05, scrollTrigger: { trigger: '.pipeline', start: 'top 80%' } });
     try { pipe3d = initPipeline3D({ section: pipelineEl, mount: $('#pipelineGraph'), labels: nodes, compact: true }); } catch { pipe3d = null; pipelineEl.classList.remove('is-3d'); }
     if (pipe3d) {
       if (validated) pipe3d.validate();
       const drive = (p) => setPipeline(pipe3d.setProgress(p) / nodes.length);
       ScrollTrigger.create({ trigger: '.pipeline__pin', start: 'top top', end: '+=2400', pin: true, scrub: 0.5, onUpdate: (s) => drive(s.progress),
-        onToggle: (s) => { if (!hero) return; if (s.isActive) hero.pause(); else if (!fxOff()) hero.play(); } });
+        onToggle: (s) => { if (!hero) return; if (s.isActive) hero.pause(); else hero.play(); } });
       drive(0);
     } else {
       ScrollTrigger.create({ trigger: '.pipeline__stage', start: 'top 75%', end: 'bottom 55%', scrub: 0.5, onUpdate: (s) => setPipeline(s.progress * 1.08) });
@@ -261,7 +339,7 @@ else {
     };
     reel.addEventListener('scroll', curve, { passive: true });
     curve();
-    return () => { reel.removeEventListener('scroll', curve); pipe3d?.destroy(); pipe3d = null; clipState.forEach((s, i) => { s.ry = 0; s.z = 0; applyClip(i); }); if (hero && !fxOff()) hero.play(); };
+    return () => { reel.removeEventListener('scroll', curve); pipe3d?.destroy(); pipe3d = null; clipState.forEach((s, i) => { s.ry = 0; s.z = 0; applyClip(i); }); if (hero) hero.play(); };
   });
 }
 
@@ -321,7 +399,50 @@ function closeCase() {
     .to('.case__scroll', { clipPath: 'inset(0 0 100% 0)', duration: reduced ? 0 : 0.6, ease: 'expo.inOut' })
     .to('.case__curtain', { scaleY: 0, transformOrigin: 'top', duration: reduced ? 0 : 0.5, ease: 'expo.inOut' }, '-=0.3');
 }
-$('#workList').addEventListener('click', (e) => { const r = e.target.closest('.row'); if (r) openCase(r.dataset.project); });
+$('#workStage').addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) openCase(b.dataset.open); });
+
+// ---------- L'essentiel en 30 secondes (recruteur pressé) ----------
+const quick = $('#quick'), Q = L.quick, dimO = { v: 1 };
+let quickOpen = false, quickTl = null;
+$('#quickBody').innerHTML = `<p class="label mono">${esc(Q.label)}</p>
+  <h2 class="quick__title" id="quickTitle">${Q.title}</h2>
+  <p class="quick__lede">${esc(Q.lede)}</p>
+  <div class="quick__proofs">${Q.proofs.map(([n, t, src, id]) => `<button class="proof" type="button" data-proof="${id}"><b>${esc(n)}</b><span>${esc(t)}</span><i class="mono">${esc(src)} →</i></button>`).join('')}</div>
+  <dl class="quick__facts">${Q.facts.map(([k, v]) => `<div><dt class="mono">${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+  <div class="quick__stack">${Q.stack.map((t) => `<i class="tag">${esc(t)}</i>`).join('')}</div>
+  <div class="quick__actions">
+    <a class="btn btn--primary" href="${contact.cv}" download><span class="btn__fill"></span><span class="btn__label">${esc(Q.cv)}</span><span class="btn__arrow">↓</span></a>
+    <a class="btn" href="mailto:${contact.email}"><span class="btn__fill"></span><span class="btn__label">${esc(Q.mail)}</span><span class="btn__arrow">→</span></a>
+    <a class="btn" href="tel:${contact.phoneIntl}"><span class="btn__fill"></span><span class="btn__label">${contact.phone}</span></a>
+    <button class="btn btn--ghost" type="button" id="quickMore"><span class="btn__fill"></span><span class="btn__label">${esc(Q.more)}</span><span class="btn__arrow">↓</span></button>
+  </div>
+  <div class="quick__timer" aria-hidden="true"><span class="quick__track"><i id="quickTimer"></i></span><span class="mono" id="quickSec">30 s</span></div>`;
+const dimWorld = (v) => gsap.to(dimO, { v, duration: 0.6, overwrite: true, onUpdate: () => { if (hero) hero.dim = dimO.v; } });
+function openQuick() {
+  if (quickOpen) return; quickOpen = true; lastFocus = document.activeElement; closeMenu();
+  quick.setAttribute('aria-hidden', 'false'); lenis?.stop(); gsap.set(quick, { visibility: 'visible' }); dimWorld(0.3);
+  $('.quick__panel').scrollTop = 0;
+  if (reduced) { gsap.set('.quick__veil', { opacity: 1 }); gsap.set('.quick__panel', { clipPath: 'inset(0 0 0% 0)' }); }
+  else quickTl = gsap.timeline()
+    .fromTo('.quick__veil', { opacity: 0 }, { opacity: 1, duration: 0.4 })
+    .fromTo('.quick__panel', { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.85, ease: 'expo.inOut' }, 0)
+    .fromTo('#quickBody > *', { y: 36, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, stagger: 0.07, ease: 'expo.out' }, 0.35)
+    .fromTo('.proof', { rotateX: -60, transformPerspective: 800, transformOrigin: '50% 0%', opacity: 0 }, { rotateX: 0, opacity: 1, duration: 1, stagger: 0.09, ease: 'expo.out' }, 0.5)
+    .add(() => $$('.proof b').forEach((el) => scramble(el, 0.8)), 0.6)
+    .fromTo('#quickTimer', { scaleX: 0 }, { scaleX: 1, duration: 30, ease: 'none', onUpdate() { $('#quickSec').textContent = `${Math.max(0, Math.ceil(30 - this.time()))} s`; } }, 0.4);
+  $('#quickClose').focus();
+}
+function closeQuick() {
+  if (!quickOpen) return; quickOpen = false; quick.setAttribute('aria-hidden', 'true'); quickTl?.kill(); dimWorld(1);
+  gsap.timeline({ onComplete: () => { gsap.set(quick, { visibility: 'hidden' }); if (!caseOpen) lenis?.start(); lastFocus?.focus?.(); } })
+    .to('.quick__panel', { clipPath: 'inset(0 0 100% 0)', duration: reduced ? 0 : 0.55, ease: 'expo.inOut' })
+    .to('.quick__veil', { opacity: 0, duration: reduced ? 0 : 0.3 }, '-=0.2');
+}
+document.addEventListener('click', (e) => { if (e.target.closest('[data-quick]')) openQuick(); });
+$('#quickClose').addEventListener('click', closeQuick);
+$('.quick__veil').addEventListener('click', closeQuick);
+$('#quickMore').addEventListener('click', closeQuick);
+$('#quickBody').addEventListener('click', (e) => { const p = e.target.closest('[data-proof]'); if (p) { closeQuick(); openCase(p.dataset.proof); } });
 caseBody.addEventListener('click', (e) => { const n = e.target.closest('[data-next]'); if (n) { renderCase(n.dataset.next); } });
 $('#caseClose').addEventListener('click', closeCase);
 
@@ -335,7 +456,7 @@ menuBtn.addEventListener('click', () => {
   gsap.fromTo(menu, { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.7, ease: 'expo.inOut' });
   gsap.from('.menu__nav a', { yPercent: 100, opacity: 0, duration: 0.8, stagger: 0.06, ease: 'expo.out', delay: 0.25 });
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeVideo(); closeCase(); closeMenu(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeVideo(); closeCase(); closeMenu(); closeQuick(); } });
 
 // ---------- Curseur, aimants, aperçus ----------
 const preview = $('#preview'), previewImg = $('img', preview);
@@ -407,5 +528,6 @@ $('#copyBtn').addEventListener('click', async () => {
 const clock = $('#clock'), fmt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const tick = () => { clock.textContent = fmt.format(new Date()); }; tick(); setInterval(tick, 1000);
 document.addEventListener('visibilitychange', () => { if (!hero) return; if (document.hidden) hero.pause(); else hero.play(); });
+if (import.meta.env.DEV) window.__dbg = { segs, hero, ScrollTrigger, K, lenis, go: (y) => (lenis ? lenis.scrollTo(y, { immediate: true, force: true }) : window.scrollTo(0, y)) };
 window.addEventListener('load', () => ScrollTrigger.refresh());
 document.fonts?.ready.then(() => ScrollTrigger.refresh());

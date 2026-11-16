@@ -84,9 +84,11 @@ export function initExtras({ lenis, hero, reduced, fine, lang, sections }) {
 
   const soundBtn = $('#soundBtn'), fxBtn = $('#fxBtn');
   soundBtn.addEventListener('click', () => { const v = sound.toggle(); soundBtn.setAttribute('aria-pressed', v); soundBtn.classList.toggle('is-on', v); soundBtn.lastElementChild.textContent = v ? S.soundOn : S.soundOff; });
-  const setFx = (off) => { root.classList.toggle('fx-off', off); fxBtn.setAttribute('aria-pressed', off); fxBtn.lastElementChild.textContent = off ? S.fxOff : S.fxOn; if (hero) { if (off) hero.pause(); else hero.play(); } store.set('fx', off ? 'off' : 'on'); };
+  const setFx = (off, save = true) => { root.classList.toggle('fx-off', off); fxBtn.setAttribute('aria-pressed', off); fxBtn.lastElementChild.textContent = off ? S.fxOff : S.fxOn; if (save) store.set('fx', off ? 'off' : 'on'); };
   fxBtn.addEventListener('click', () => setFx(!root.classList.contains('fx-off')));
   if (store.get('fx') === 'off') setFx(true);
+  // Version légère automatique : si l'appareil peine vraiment, le grain et les lueurs s'éteignent (sans rien enregistrer).
+  window.addEventListener('world:slow', () => { if (!root.classList.contains('fx-off')) root.classList.add('fx-lite'); });
 
   // Sons d'interface
   document.addEventListener('pointerover', (e) => { const t = e.target.closest('a, button, .row, .clip'); if (t && t !== document._lastHover) { document._lastHover = t; sound.hover(); } if (!t) document._lastHover = null; });
@@ -106,7 +108,7 @@ export function initExtras({ lenis, hero, reduced, fine, lang, sections }) {
   const skewTargets = $$('#workList, #mdmPages, #caps, .stats');
   const skew = { v: 0 };
   const apply = gsap.quickSetter(skewTargets, 'skewY', 'deg');
-  ScrollTrigger.create({ onUpdate: (s) => {
+  ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => {
     if (root.classList.contains('fx-off')) return;
     const v = gsap.utils.clamp(-3.5, 3.5, s.getVelocity() / -420);
     if (Math.abs(v) > Math.abs(skew.v)) { skew.v = v; gsap.to(skew, { v: 0, duration: 0.9, ease: 'power3.out', overwrite: true, onUpdate: () => apply(skew.v) }); }

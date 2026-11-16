@@ -57,6 +57,7 @@
     </nav>
     <div class="header__right">
       <span class="status mono"><i class="pulse"></i><span data-i18n="status">Disponible — alternance ou stage alterné</span></span>
+      <button class="quick-top mono" type="button" data-quick data-magnetic><span data-i18n="quick.top">L'essentiel en 30 s</span></button>
       <button class="lang mono" id="langBtn" type="button" data-magnetic aria-label="Switch to English"><span class="lang__on">FR</span><span class="lang__sep">/</span><span class="lang__off">EN</span></button>
       <button class="menu-btn mono" id="menuBtn" type="button" aria-expanded="false" aria-controls="menu"><span data-i18n="nav.menu">Menu</span></button>
     </div>
@@ -70,6 +71,7 @@
       <a href="#parcours"><i class="mono">04</i><span data-i18n="nav.path">Parcours</span></a>
       <a href="#contact"><i class="mono">05</i><span data-i18n="nav.contact">Contact</span></a>
     </nav>
+    <button class="quick-btn quick-btn--menu" type="button" data-quick><i class="quick-btn__ring" aria-hidden="true"></i><span data-i18n="quick.btn">Recruteur pressé ?</span><b class="mono" data-i18n="quick.btn.time">30 s</b></button>
   </div>
 
   <main id="main">
@@ -85,7 +87,10 @@
       </h1>
       <div class="hero__bottom">
         <p class="hero__kicker" data-i18n="hero.kicker">Alternant <span class="u-accent">Automatisation &amp; IA</span><br>Motion design écrit en code</p>
-        <p class="hero__lede" data-i18n="hero.lede">Je conçois des systèmes qui travaillent tout seuls — agents IA, workflows n8n, serveurs — et je leur donne du mouvement.</p>
+        <div class="hero__mid">
+          <p class="hero__lede" data-i18n="hero.lede">Je conçois des systèmes qui travaillent tout seuls — agents IA, workflows n8n, serveurs — et je leur donne du mouvement.</p>
+          <button class="quick-btn" type="button" data-quick data-magnetic><i class="quick-btn__ring" aria-hidden="true"></i><span data-i18n="quick.btn">Recruteur pressé ?</span><b class="mono" data-i18n="quick.btn.time">30 s</b></button>
+        </div>
         <div class="hero__meta mono">
           <span data-i18n="hero.loc">Saint-Denis · Île-de-France</span>
           <span class="hero__scroll"><i></i><span data-i18n="hero.scroll">Faire défiler</span></span>
@@ -115,7 +120,12 @@
         <h2 class="title" data-reveal="lines" data-i18n="work.title"></h2>
         <p class="hint mono" data-i18n="work.hint"></p>
       </div>
-      <ol class="work__list" id="workList"></ol>
+      <!-- Scène épinglée : un projet par écran, la sculpture 3D change avec le défilement -->
+      <div class="work__pin" id="workPin">
+        <div class="work__count" aria-hidden="true"><div class="work__odo" id="workOdo"></div></div>
+        <div class="work__stage" id="workStage"></div>
+        <nav class="work__rail mono" id="workRail" aria-label="Projets"></nav>
+      </div>
     </section>
 
     <!-- 03 · Pipeline -->
@@ -219,6 +229,15 @@
     <div class="case__scroll" data-lenis-prevent>
       <button class="case__close mono" id="caseClose" type="button" data-magnetic><span data-i18n="case.close">Fermer</span> ✕</button>
       <div class="case__body" id="caseBody"></div>
+    </div>
+  </div>
+
+  <!-- L'essentiel en 30 secondes, pour un recruteur pressé -->
+  <div class="quick" id="quick" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="quickTitle">
+    <div class="quick__veil"></div>
+    <div class="quick__panel" data-lenis-prevent>
+      <button class="case__close mono" id="quickClose" type="button"><span data-i18n="case.close">Fermer</span> ✕</button>
+      <div class="quick__body" id="quickBody"></div>
     </div>
   </div>
 

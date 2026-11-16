@@ -23,7 +23,8 @@ export const content = {
       'manifesto.method': "Méthode : je pilote l'IA (Claude Code) pour écrire le code, puis je teste, je mesure les coûts et je documente.",
       'work.label': '(02) Travaux sélectionnés',
       'work.title': 'Des systèmes <em>qui tournent,</em> pas des maquettes.',
-      'work.hint': 'Cliquer pour ouvrir le projet',
+      'work.hint': 'Faites défiler : la sculpture change avec chaque projet', 'work.open': 'Ouvrir le projet',
+      'quick.btn': 'Recruteur pressé ?', 'quick.btn.time': '30 s', 'quick.top': "L'essentiel en 30 s",
       'pipeline.label': '(03) Pipeline en direct',
       'pipeline.title': 'Un e-mail entre. <em>À vous de valider.</em>',
       'pipeline.intro': "Faites défiler : le message avance d'étape en étape, comme dans n8n. Un seul appel à Claude, une sortie JSON imposée, et rien ne part sans le clic d'une personne. Ici, cette personne, c'est vous.",
@@ -49,6 +50,25 @@ export const content = {
       'lang.switch': 'Switch to English',
       skip: 'Aller au contenu',
     },
+    quick: {
+      label: "L'essentiel en 30 secondes",
+      title: 'Johanne Pamegne, <em>alternant Automatisation &amp; IA.</em>',
+      lede: "Je construis des systèmes qui font le travail répétitif à la place des équipes : agents IA, workflows n8n, serveurs. Chaque chiffre ci-dessous est mesuré sur un vrai projet.",
+      proofs: [
+        ['32/32', 'e-mails de test bien classés', 'Aiguilleur IA · n8n + API Claude', 'aiguilleur'],
+        ['0,07 $', 'coût mesuré par candidature', 'JobHunter · multi-agent + Supabase', 'jobhunter'],
+        ['102', 'tests automatisés, système construit en 3 jours', 'Agence IA de doublage vidéo', 'doublage'],
+      ],
+      facts: [
+        ['Je cherche', 'Alternance ou stage alterné en automatisation et IA'],
+        ['Disponibilité', 'Dès maintenant'],
+        ['Rythme', 'Flexible, au choix de l’entreprise'],
+        ['Lieu', 'Île-de-France ou à distance'],
+        ['Formation', 'Bachelor informatique, 2e année — ESIIA, Torcy'],
+      ],
+      stack: ['n8n', 'API Claude', 'Agents IA', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
+      cv: 'Télécharger le CV', mail: 'Écrire un e-mail', more: 'Voir tout le site', see: 'Voir le projet',
+    },
     stats: [
       { n: 5, suffix: '', label: 'systèmes n8n construits en 2026' },
       { n: 32, suffix: '', label: "workflows dans l'agence de doublage" },
@@ -57,7 +77,7 @@ export const content = {
     ],
     projects: [
       {
-        id: 'doublage', year: '2026', img: 'media/doublage.webp',
+        id: 'doublage', short: 'Doublage', color: '#7CF5D0', year: '2026', img: 'media/doublage.webp',
         title: 'Agence IA de doublage vidéo', sub: 'Multi-agent · voix clonée',
         tags: ['n8n', 'API Claude', 'ElevenLabs', 'Telegram'],
         summary: "Une vidéo envoyée sur Telegram revient doublée dans une autre langue, avec la voix d'origine. Un agent directeur coordonne une équipe d'agents : traduction, voix, contrôle qualité.",
@@ -67,7 +87,7 @@ export const content = {
         links: [],
       },
       {
-        id: 'jobhunter', year: '2026', img: 'media/jobhunter.webp',
+        id: 'jobhunter', short: 'JobHunter', color: '#35E08B', year: '2026', img: 'media/jobhunter.webp',
         title: 'JobHunter', sub: "Système multi-agent de recherche d'alternance",
         tags: ['n8n', 'Supabase', 'API Claude', 'React'],
         summary: "Des agents cherchent les offres, les notent, trouvent le bon contact et préparent chaque candidature. Un agent vérificateur relit tout : la base refuse un e-mail sans relecture réussie.",
@@ -77,7 +97,7 @@ export const content = {
         links: [['Voir le poste de pilotage', DEMO]],
       },
       {
-        id: 'aiguilleur', year: '2026', img: 'media/aiguilleur.webp',
+        id: 'aiguilleur', short: 'Aiguilleur', color: '#FFB347', year: '2026', img: 'media/aiguilleur.webp',
         title: 'Aiguilleur IA', sub: 'Tri automatique des e-mails clients',
         tags: ['n8n', 'API Claude', 'Gmail', 'Google Sheets'],
         summary: "Il relève la boîte contact@ d'une entreprise toutes les 15 secondes. Un seul appel à Claude classe l'e-mail, mesure l'urgence, résume, rédige un brouillon et le confie au bon collègue.",
@@ -87,7 +107,7 @@ export const content = {
         links: [['Voir sous le capot', '#sous-le-capot'], ['Voir la présentation', AIG]],
       },
       {
-        id: 'vorchex', year: '2026', img: null,
+        id: 'vorchex', short: 'VorcheX', color: '#35E08B', year: '2026', img: null,
         title: 'Infrastructure VorcheX', sub: "Serveur d'automatisation auto-hébergé",
         tags: ['VPS Ubuntu', 'Docker', 'Coolify', 'PostgreSQL'],
         summary: "Mon propre serveur d'automatisation : un n8n central et sa base PostgreSQL sur un VPS que j'administre, déployés avec Docker et Coolify, sous mon domaine.",
@@ -97,7 +117,7 @@ export const content = {
         links: [],
       },
       {
-        id: 'encaisse', year: '2026', img: null,
+        id: 'encaisse', short: 'Encaisse', color: '#FFB347', year: '2026', img: null,
         title: 'Encaisse', sub: 'Recouvrement de factures BTP — en cours',
         tags: ['n8n', 'PostgreSQL', 'Gotenberg'],
         summary: "Automatisation du recouvrement de factures pour le BTP : relances, PDF, envois. Tout est journalisé, et aucune action juridique ne part sans validation humaine.",
@@ -107,7 +127,7 @@ export const content = {
         links: [],
       },
       {
-        id: 'motion', year: '2026', img: 'media/dt-motion.webp',
+        id: 'motion', short: 'Motion', color: '#FF6B6B', year: '2026', img: 'media/dt-motion.webp',
         title: 'Motion design', sub: 'Pubs et films de marque animés en code',
         tags: ['HyperFrames', 'GSAP', 'ElevenLabs', 'FFmpeg'],
         summary: "Des pubs et un film de marque animés en code : HTML et GSAP avec HyperFrames, voix off ElevenLabs, son mixé à −14 LUFS pour Instagram et TikTok.",
@@ -177,7 +197,8 @@ export const content = {
       'manifesto.method': 'Method: I steer AI (Claude Code) to write the code, then I test, measure costs and document.',
       'work.label': '(02) Selected work',
       'work.title': 'Systems <em>that run,</em> not mockups.',
-      'work.hint': 'Click to open the project',
+      'work.hint': 'Scroll: the sculpture changes with each project', 'work.open': 'Open the project',
+      'quick.btn': 'Recruiter in a hurry?', 'quick.btn.time': '30 s', 'quick.top': 'The essentials in 30 s',
       'pipeline.label': '(03) Live pipeline',
       'pipeline.title': 'An email comes in. <em>You approve.</em>',
       'pipeline.intro': 'Scroll: the message moves step by step, like in n8n. One single Claude call, an enforced JSON output, and nothing is sent without a person’s click. Here, that person is you.',
@@ -203,6 +224,25 @@ export const content = {
       'lang.switch': 'Passer en français',
       skip: 'Skip to content',
     },
+    quick: {
+      label: 'The essentials in 30 seconds',
+      title: 'Johanne Pamegne, <em>Automation &amp; AI apprentice.</em>',
+      lede: 'I build systems that take repetitive work off people’s plates: AI agents, n8n workflows, servers. Every figure below was measured on a real project.',
+      proofs: [
+        ['32/32', 'test emails routed correctly', 'Aiguilleur IA · n8n + Claude API', 'aiguilleur'],
+        ['$0.07', 'measured cost per application', 'JobHunter · multi-agent + Supabase', 'jobhunter'],
+        ['102', 'automated tests, system built in 3 days', 'AI video dubbing agency', 'doublage'],
+      ],
+      facts: [
+        ['Looking for', 'A work-study position (alternance) in automation and AI'],
+        ['Availability', 'Right now'],
+        ['Rhythm', 'Flexible, the company decides'],
+        ['Location', 'Paris region or remote'],
+        ['Education', 'Bachelor in computer science, year 2 — ESIIA, Torcy'],
+      ],
+      stack: ['n8n', 'Claude API', 'AI agents', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
+      cv: 'Download my CV', mail: 'Send an email', more: 'See the whole site', see: 'See the project',
+    },
     stats: [
       { n: 5, suffix: '', label: 'n8n systems built in 2026' },
       { n: 32, suffix: '', label: 'workflows in the dubbing agency' },
@@ -211,7 +251,7 @@ export const content = {
     ],
     projects: [
       {
-        id: 'doublage', year: '2026', img: 'media/doublage.webp',
+        id: 'doublage', short: 'Dubbing', color: '#7CF5D0', year: '2026', img: 'media/doublage.webp',
         title: 'AI video dubbing agency', sub: 'Multi-agent · cloned voice',
         tags: ['n8n', 'Claude API', 'ElevenLabs', 'Telegram'],
         summary: 'Send a video on Telegram and it comes back dubbed in another language, in the original voice. A director agent coordinates a team of agents: translation, voice, quality control.',
@@ -221,7 +261,7 @@ export const content = {
         links: [],
       },
       {
-        id: 'jobhunter', year: '2026', img: 'media/jobhunter.webp',
+        id: 'jobhunter', short: 'JobHunter', color: '#35E08B', year: '2026', img: 'media/jobhunter.webp',
         title: 'JobHunter', sub: 'Multi-agent work-study job search',
         tags: ['n8n', 'Supabase', 'Claude API', 'React'],
         summary: 'Agents find job offers, score them, look up the right contact and draft each application. A reviewer agent checks everything: the database refuses any email without a passed review.',
@@ -231,7 +271,7 @@ export const content = {
         links: [['Open the control room', DEMO]],
       },
       {
-        id: 'aiguilleur', year: '2026', img: 'media/aiguilleur.webp',
+        id: 'aiguilleur', short: 'Aiguilleur', color: '#FFB347', year: '2026', img: 'media/aiguilleur.webp',
         title: 'Aiguilleur IA', sub: 'Automatic customer email triage',
         tags: ['n8n', 'Claude API', 'Gmail', 'Google Sheets'],
         summary: 'It checks a company’s contact@ inbox every 15 seconds. One single Claude call categorises the email, rates urgency, summarises, drafts a reply and hands it to the right teammate.',
@@ -241,7 +281,7 @@ export const content = {
         links: [['See under the hood', '#sous-le-capot'], ['See the presentation', AIG]],
       },
       {
-        id: 'vorchex', year: '2026', img: null,
+        id: 'vorchex', short: 'VorcheX', color: '#35E08B', year: '2026', img: null,
         title: 'VorcheX infrastructure', sub: 'Self-hosted automation server',
         tags: ['Ubuntu VPS', 'Docker', 'Coolify', 'PostgreSQL'],
         summary: 'My own automation server: a central n8n and its PostgreSQL database on a VPS I administer, deployed with Docker and Coolify, under my own domain.',
@@ -251,7 +291,7 @@ export const content = {
         links: [],
       },
       {
-        id: 'encaisse', year: '2026', img: null,
+        id: 'encaisse', short: 'Encaisse', color: '#FFB347', year: '2026', img: null,
         title: 'Encaisse', sub: 'Construction invoice collection — in progress',
         tags: ['n8n', 'PostgreSQL', 'Gotenberg'],
         summary: 'Automated invoice collection for construction companies: reminders, PDFs, sending. Everything is logged, and no legal action goes out without human approval.',
@@ -261,7 +301,7 @@ export const content = {
         links: [],
       },
       {
-        id: 'motion', year: '2026', img: 'media/dt-motion.webp',
+        id: 'motion', short: 'Motion', color: '#FF6B6B', year: '2026', img: 'media/dt-motion.webp',
         title: 'Motion design', sub: 'Ads and brand films animated in code',
         tags: ['HyperFrames', 'GSAP', 'ElevenLabs', 'FFmpeg'],
         summary: 'Ads and a brand film animated in code: HTML and GSAP with HyperFrames, ElevenLabs voice-over, sound mixed at −14 LUFS for Instagram and TikTok.',
