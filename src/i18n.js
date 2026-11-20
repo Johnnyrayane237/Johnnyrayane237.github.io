@@ -3,6 +3,7 @@
 
 const DEMO = 'https://johnnyrayane237.github.io/jobhunter-poste-de-pilotage/';
 const AIG = 'https://johnnyrayane237.github.io/aiguilleur/';
+const VOIX = 'https://github.com/Johnnyrayane237/standardiste-vocal-ia';
 
 export const content = {
   fr: {
@@ -55,6 +56,7 @@ export const content = {
       title: 'Johanne Pamegne, <em>alternant Automatisation &amp; IA.</em>',
       lede: "Je construis des systèmes qui font le travail répétitif à la place des équipes : agents IA, workflows n8n, serveurs. Chaque chiffre ci-dessous est mesuré sur un vrai projet.",
       proofs: [
+        ['60', 'blocs n8n générés par du code, 65 tests', 'Standardiste vocal IA · Retell + n8n', 'standardiste'],
         ['32/32', 'e-mails de test bien classés', 'Aiguilleur IA · n8n + API Claude', 'aiguilleur'],
         ['0,07 $', 'coût mesuré par candidature', 'JobHunter · multi-agent + Supabase', 'jobhunter'],
         ['102', 'tests automatisés, système construit en 3 jours', 'Agence IA de doublage vidéo', 'doublage'],
@@ -66,16 +68,26 @@ export const content = {
         ['Lieu', 'Île-de-France ou à distance'],
         ['Formation', 'Bachelor informatique, 2e année — ESIIA, Torcy'],
       ],
-      stack: ['n8n', 'API Claude', 'Agents IA', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
+      stack: ['n8n', 'API Claude', 'Agents IA', 'Retell AI', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
       cv: 'Télécharger le CV', mail: 'Écrire un e-mail', more: 'Voir tout le site', see: 'Voir le projet',
     },
     stats: [
-      { n: 5, suffix: '', label: 'systèmes n8n construits en 2026' },
+      { n: 6, suffix: '', label: 'systèmes n8n construits en 2026' },
       { n: 32, suffix: '', label: "workflows dans l'agence de doublage" },
       { n: 102, suffix: '', label: 'tests automatisés sur un seul projet' },
       { n: 13, suffix: '/13', label: 'candidatures correctement vérifiées par JobHunter' },
     ],
     projects: [
+      {
+        id: 'standardiste', short: 'Standardiste', color: '#C49BFF', year: '2026', img: 'media/standardiste.webp',
+        title: 'Standardiste vocal IA', sub: 'Une assistante qui décroche quand personne ne peut',
+        tags: ['Retell AI', 'n8n', 'API Claude', 'ElevenLabs'],
+        summary: "« Lucie » répond au téléphone quand l'équipe est occupée. Elle prend, déplace et annule les rendez-vous, repère les urgences et prévient le responsable. Démo réalisée pour un plombier, réglable pour tout métier qui vit de ses rendez-vous.",
+        metrics: [['60', 'blocs n8n générés par du code'], ['65', 'tests automatiques au vert'], ['6', "fonctions appelées par l'agent en plein appel"], ['30 j', 'de conservation des enregistrements (RGPD)']],
+        built: ["Agent vocal Retell AI, voix ElevenLabs, consignes et 6 fonctions", "Chaque action revérifiée avant d'écrire dans l'agenda", "Urgence : alerte immédiate au responsable, puis transfert de l'appel", "Récapitulatif chaque soir, effacement automatique des vieilles données", 'Testé en appels réels, construit en pilotant Claude Code'],
+        stack: ['Retell AI', 'n8n', 'API Claude', 'ElevenLabs', 'ntfy', 'Coolify', 'Node.js'],
+        links: [['Voir le code sur GitHub', VOIX]],
+      },
       {
         id: 'doublage', short: 'Doublage', color: '#7CF5D0', year: '2026', img: 'media/doublage.webp',
         title: 'Agence IA de doublage vidéo', sub: 'Multi-agent · voix clonée',
@@ -163,7 +175,7 @@ export const content = {
     ],
     caps: [
       ['Automatisation', ['n8n : workflows, webhooks, nœuds Code', 'Gestion des erreurs et relances', 'API REST, JSON, cron', 'Gmail, Telegram, Google Sheets']],
-      ['IA générative', ['Agents et systèmes multi-agents', 'API Claude (Anthropic)', 'Prompt engineering, sorties JSON', 'Contrôle qualité des réponses']],
+      ['IA générative', ['Agents vocaux (Retell AI) et multi-agents', 'API Claude (Anthropic)', 'Prompt engineering, sorties JSON', 'Contrôle qualité des réponses']],
       ['Données', ['PostgreSQL, SQL, migrations', 'Supabase et sécurité RLS', 'Google Drive, Google Sheets', 'Gotenberg (génération de PDF)']],
       ['Infrastructure', ['Docker, Docker Compose', 'Coolify sur VPS Ubuntu', 'DNS, HTTPS, pare-feu, nginx', 'Sauvegardes et surveillance']],
       ['Développement', ['JavaScript / Node.js, TypeScript', 'React, HTML, CSS', 'Python, Git, GitHub Actions', 'Tests automatisés (Vitest)']],
@@ -229,6 +241,7 @@ export const content = {
       title: 'Johanne Pamegne, <em>Automation &amp; AI apprentice.</em>',
       lede: 'I build systems that take repetitive work off people’s plates: AI agents, n8n workflows, servers. Every figure below was measured on a real project.',
       proofs: [
+        ['60', 'n8n nodes generated from code, 65 tests', 'AI voice receptionist · Retell + n8n', 'standardiste'],
         ['32/32', 'test emails routed correctly', 'Aiguilleur IA · n8n + Claude API', 'aiguilleur'],
         ['$0.07', 'measured cost per application', 'JobHunter · multi-agent + Supabase', 'jobhunter'],
         ['102', 'automated tests, system built in 3 days', 'AI video dubbing agency', 'doublage'],
@@ -240,16 +253,26 @@ export const content = {
         ['Location', 'Paris region or remote'],
         ['Education', 'Bachelor in computer science, year 2 — ESIIA, Torcy'],
       ],
-      stack: ['n8n', 'Claude API', 'AI agents', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
+      stack: ['n8n', 'Claude API', 'AI agents', 'Retell AI', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
       cv: 'Download my CV', mail: 'Send an email', more: 'See the whole site', see: 'See the project',
     },
     stats: [
-      { n: 5, suffix: '', label: 'n8n systems built in 2026' },
+      { n: 6, suffix: '', label: 'n8n systems built in 2026' },
       { n: 32, suffix: '', label: 'workflows in the dubbing agency' },
       { n: 102, suffix: '', label: 'automated tests on a single project' },
       { n: 13, suffix: '/13', label: 'applications reviewed correctly by JobHunter' },
     ],
     projects: [
+      {
+        id: 'standardiste', short: 'Receptionist', color: '#C49BFF', year: '2026', img: 'media/standardiste.webp',
+        title: 'AI voice receptionist', sub: 'An assistant that answers when no one can',
+        tags: ['Retell AI', 'n8n', 'Claude API', 'ElevenLabs'],
+        summary: '“Lucie” answers the phone when the team is busy. She books, moves and cancels appointments, spots emergencies and alerts the person in charge. Demo built for a plumber, configurable for any business that runs on appointments.',
+        metrics: [['60', 'n8n nodes generated from code'], ['65', 'automated tests passing'], ['6', 'functions the agent calls mid-call'], ['30 d', 'recording retention (GDPR)']],
+        built: ['Retell AI voice agent, ElevenLabs voice, prompt and 6 functions', 'Every action double-checked before touching the calendar', 'Emergency: instant alert to the person in charge, then call transfer', 'Evening summary, automatic deletion of old data', 'Tested with real calls, built by steering Claude Code'],
+        stack: ['Retell AI', 'n8n', 'Claude API', 'ElevenLabs', 'ntfy', 'Coolify', 'Node.js'],
+        links: [['See the code on GitHub', VOIX]],
+      },
       {
         id: 'doublage', short: 'Dubbing', color: '#7CF5D0', year: '2026', img: 'media/doublage.webp',
         title: 'AI video dubbing agency', sub: 'Multi-agent · cloned voice',
@@ -336,7 +359,7 @@ export const content = {
     ],
     caps: [
       ['Automation', ['n8n: workflows, webhooks, Code nodes', 'Error handling and retries', 'REST APIs, JSON, cron', 'Gmail, Telegram, Google Sheets']],
-      ['Generative AI', ['Agents and multi-agent systems', 'Claude API (Anthropic)', 'Prompt engineering, JSON outputs', 'Output quality control']],
+      ['Generative AI', ['Voice agents (Retell AI) and multi-agent systems', 'Claude API (Anthropic)', 'Prompt engineering, JSON outputs', 'Output quality control']],
       ['Data', ['PostgreSQL, SQL, migrations', 'Supabase and RLS security', 'Google Drive, Google Sheets', 'Gotenberg (PDF generation)']],
       ['Infrastructure', ['Docker, Docker Compose', 'Coolify on an Ubuntu VPS', 'DNS, HTTPS, firewall, nginx', 'Backups and monitoring']],
       ['Development', ['JavaScript / Node.js, TypeScript', 'React, HTML, CSS', 'Python, Git, GitHub Actions', 'Automated tests (Vitest)']],

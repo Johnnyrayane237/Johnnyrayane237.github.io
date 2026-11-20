@@ -73,6 +73,14 @@ export const hood = {
 // « Sous le capot » dans les fiches projet
 export const features = {
   fr: {
+    standardiste: [
+      ['Rendez-vous sans erreur', "Lucie ne propose que des créneaux vraiment libres, et un même créneau ne peut jamais être pris deux fois."],
+      ['Déplacer ou annuler', "Le client gère son rendez-vous au téléphone ; seul l'appelant concerné peut le modifier."],
+      ['Urgences', "Les demandes urgentes sont repérées : alerte immédiate au responsable, puis transfert de l'appel."],
+      ['Récap du soir', "Chaque soir, le responsable voit les appels, les rendez-vous, les urgences et les personnes à rappeler."],
+      ['Photo du problème', "Avant le rendez-vous, le client peut envoyer une photo : le responsable arrive préparé."],
+      ['RGPD', "Appel annoncé comme enregistré, données effacées automatiquement."],
+    ],
     doublage: [
       ['Le directeur', "Lit sa mémoire, remplit une fiche de besoins, pose une seule question à la fois, puis montre un récapitulatif avec le coût."],
       ['Bouton « Lancer »', "Rien ne part sans un clic humain : l'IA n'a pas accès à ce bouton."],
@@ -110,6 +118,14 @@ export const features = {
     ],
   },
   en: {
+    standardiste: [
+      ['Error-free booking', 'Lucie only offers truly free slots, and the same slot can never be booked twice.'],
+      ['Move or cancel', 'Customers manage their appointment by phone; only the right caller can change it.'],
+      ['Emergencies', 'Urgent requests are spotted: instant alert to the person in charge, then call transfer.'],
+      ['Evening summary', 'Every evening, the person in charge sees calls, appointments, emergencies and people to call back.'],
+      ['Photo of the problem', 'Before the appointment, the customer can send a photo, so the person in charge arrives prepared.'],
+      ['GDPR', 'The call is announced as recorded, data is deleted automatically.'],
+    ],
     doublage: [
       ['The director', 'Reads its memory, fills a needs sheet, asks one question at a time, then shows a summary with the cost.'],
       ['“Launch” button', 'Nothing starts without a human click: the AI has no access to that button.'],

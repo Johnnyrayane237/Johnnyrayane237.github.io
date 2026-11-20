@@ -30,7 +30,7 @@
 .work__odo span { display: block; height: 1em; text-align: right; }
 
 /* Rail de navigation entre les projets */
-.work__rail { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; border-top: 1px solid var(--line); }
+.work__rail { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; border-top: 1px solid var(--line); }
 .work__rail button { display: flex; align-items: baseline; gap: 10px; padding: 14px 0 0; color: var(--muted); text-align: left; text-transform: uppercase; letter-spacing: .04em; transition: color .4s; }
 .work__rail button i { font-style: normal; opacity: .6; }
 .work__rail button:hover, .work__rail button.is-done { color: #c8cdd8; }
@@ -68,7 +68,7 @@
 .quick__title { font-size: clamp(1.9rem, 4.2vw, 4rem); font-weight: 750; letter-spacing: -.045em; line-height: 1; max-width: 16ch; }
 .quick__title em { font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: -.02em; color: var(--accent-2); }
 .quick__lede { color: #c8cdd8; max-width: 66ch; }
-.quick__proofs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.quick__proofs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .proof { position: relative; display: grid; gap: 6px; text-align: left; padding: 18px 18px 16px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255, 255, 255, .03); overflow: hidden; transition: border-color .4s, background .4s; }
 .proof::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--accent), transparent); }
 .proof:hover { border-color: var(--accent); background: rgba(47, 128, 255, .1); }

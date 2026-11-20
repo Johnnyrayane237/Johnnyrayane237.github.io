@@ -8,9 +8,11 @@ import {
 
 const TAU = Math.PI * 2;
 const lerp = (a, b, t) => a + (b - a) * t;
+// Centre de l'orbe vocale du standardiste (repris tel quel dans le shader).
+const VOICE_ORB = [-1.3, 0.05, 0];
 
 // Ordre du voyage : la valeur « k » avance le long de cette piste.
-export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
+export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'voice', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
 export const K = Object.fromEntries(TRACK.map((n, i) => [n, i]));
 
 // ---------- Hasard reproductible ----------
@@ -115,6 +117,44 @@ const SHAPES = {
     }
     b.ring(b.n(0.1), [0, 0, 0], 1.28, 'yz', 0.5, 0.015, 2);
     b.ring(b.n(0.06), [0, 0, 0], 0.92, 'yz', 1, 0.012, 3);
+    return b.done();
+  },
+  // Standardiste vocal : l'orbe de la voix respire et parle ; la parole ondule, se redresse en donnée,
+  // et se pose dans l'agenda, où le créneau réservé s'allume.
+  // prm : 0–1 flux qui voyage · 1–1,5 ondes sonores · 2 orbe · 3 créneau réservé · 4 structure calme.
+  voice(N) {
+    const b = builder(N, 101), O = VOICE_ORB, R = 0.34;
+    // L'orbe : un cœur dense dans une coque.
+    b.shell(b.n(0.05), O, R, 1, 2);
+    b.shell(b.n(0.025), O, R * 0.55, 1, 2);
+    // Les ondes « ))) » tournées vers l'agenda.
+    for (let w = 0; w < 3; w++) {
+      const r = 0.56, a0 = -0.9, a1 = 0.9;
+      b.curve(b.n(0.045), (t) => { const a = lerp(a0, a1, t); return [O[0] + Math.cos(a) * r, O[1] + Math.sin(a) * r, O[2]]; }, 0, 0.014, 1 + w * 0.15, 1 + w * 0.15);
+    }
+    // L'agenda : cadre, en-tête, anneaux, jours, et 5 × 4 créneaux.
+    const C = [0.9, -0.05, 0], W = 1.7, H = 1.6, top = C[1] + H / 2;
+    b.box(b.n(0.07), C, [W, H, 0.12], 0, 0.008, 4);
+    b.line(b.n(0.018), [C[0] - W / 2, top - 0.3, 0.06], [C[0] + W / 2, top - 0.3, 0.06], 0, 0.008, 4, 4);
+    [-0.45, 0.45].forEach((dx) => b.ring(b.n(0.012), [C[0] + dx, top, 0], 0.09, 'yz', 1, 0.008, 4));
+    const x0 = C[0] - W / 2 + 0.07, y0 = top - 0.37, cw = (W - 0.14) / 5, rh = (y0 - (C[1] - H / 2 + 0.07)) / 4;
+    for (let c = 0; c < 5; c++) b.line(b.n(0.006), [x0 + cw * (c + 0.5) - 0.07, top - 0.15, 0.06], [x0 + cw * (c + 0.5) + 0.07, top - 0.15, 0.06], 0, 0.008, 4, 4);
+    let booked = null;
+    for (let c = 0; c < 5; c++) for (let r = 0; r < 4; r++) {
+      const cx = x0 + cw * (c + 0.5), cy = y0 - rh * (r + 0.5), mine = c === 2 && r === 1;
+      if (mine) booked = [cx, cy, 0.04];
+      b.box(b.n(mine ? 0.02 : 0.011), [cx, cy, 0.03], [cw * 0.78, rh * 0.72, 0.03], mine ? 1 : 0, 0.006, mine ? 3 : c * 0.18 + r * 0.03);
+    }
+    // Le créneau réservé, plein de lumière.
+    for (let k = 0, n = b.n(0.05); k < n; k++) b.put(booked[0] + (b.rnd() - 0.5) * cw * 0.74, booked[1] + (b.rnd() - 0.5) * rh * 0.68, booked[2] + b.j(0.03), 1, 3);
+    // La parole : elle ondule en sortant de l'orbe, se redresse, et se pose dans le créneau.
+    const S = [O[0] + R + 0.06, O[1] + 0.05, 0], P1 = [-0.35, 1.05, 0.4], P2 = [0.5, 0.95, 0.45], E = booked;
+    const bez = (t) => { const m = 1 - t; return [0, 1, 2].map((d) => m * m * m * S[d] + 3 * m * m * t * P1[d] + 3 * m * t * t * P2[d] + t * t * t * E[d]); };
+    for (let k = 0, n = b.n(0.13); k < n; k++) {
+      const t = b.rnd(), c = bez(t), amp = 0.085 * Math.pow(1 - t, 1.6) * Math.sin(t * 46);
+      b.put(c[0] + b.j(0.012), c[1] + amp + b.j(0.012), c[2] + b.j(0.012), b.rnd() < 0.18 ? 1 : 0, t * 0.98);
+    }
+    b.ring(b.n(0.04), [0.1, -1.08, 0], 1.95, 'xz', 0, 0.012, 4);
     return b.done();
   },
   // JobHunter : 74 offres sur le radar, 34 retenues se dressent en colonnes de lumière.
@@ -232,6 +272,7 @@ const STOPS = {
   name: { shape: 'name', fx: 0, col: ['#DCE8FF', '#2F80FF'], fade: 0.95, halo: 0.2, sway: 0.05, pose: (v) => [0, v.mobile ? 0.25 : 0.05, 0, 0, 0, 0, v.hw * 0.9] },
   sphere: { shape: 'sphere', fx: 1, col: ['#2F80FF', '#EAF1FF'], fade: 1, halo: 1, sway: 0, pose: (v) => [0, 0, 0, 0, 0, 0.18, v.mobile ? 0.77 : 1] },
   terrain: { shape: 'terrain', fx: 2, col: ['#2F80FF', '#EAF1FF'], fade: 0.42, halo: 0, sway: 0, pose: () => [0, 0, 0, 0.55, 0, 0.18, 1] },
+  voice: { shape: 'voice', fx: 11, col: ['#2F80FF', '#C49BFF'], fade: 1, halo: 0.35, sway: 0.18, pose: (v) => side(v, 0.06, -0.42, 0.95) },
   wave: { shape: 'wave', fx: 3, col: ['#2F80FF', '#7CF5D0'], fade: 1, halo: 0.35, sway: 0.22, pose: (v) => side(v, 0.12, -0.5, 0.92) },
   radar: { shape: 'radar', fx: 4, col: ['#2F80FF', '#35E08B'], fade: 1, halo: 0.3, sway: 0.12, pose: (v) => side(v, 0.95, -0.25, 0.95) },
   switch: { shape: 'switch', fx: 5, col: ['#2F80FF', '#FFB347'], fade: 1, halo: 0.3, sway: 0.2, pose: (v) => side(v, 0.1, -0.38, 0.95) },
@@ -311,6 +352,14 @@ vec3 life(vec3 p, vec2 meta, float id, out float glow){
   } else if (id < 9.5) {
     p.xy = rot(sin(uTime * .2) * .12) * p.xy;
     if (tone > .5) glow = .3 + .35 * sin(uTime * 2. + aRand.x * 30.); else glow = pow(fract(prm - uTime * .35), 6.) * 1.6;
+  } else if (id > 10.5) {
+    // Standardiste : l'orbe respire et parle, les ondes partent vers l'agenda, le créneau réservé bat.
+    vec3 c = vec3(-1.3, .05, 0.);
+    if (prm > 3.5) glow = .08 + .1 * sin(uTime * .8 + p.x * 3.);
+    else if (prm > 2.5) { float h = .5 + .5 * sin(uTime * 2.8); glow = .45 + h * .9; p.z += h * .03; }
+    else if (prm > 1.5) { float n = snoise(p * 2.6 + vec3(0., 0., uTime * .7)); float talk = .5 + .5 * sin(uTime * 7.) * sin(uTime * 2.3); p = c + (p - c) * (1. + n * .14 + talk * .07); glow = .45 + n * .8 + talk * .3; }
+    else if (prm > .999) { float d = fract(uTime * .42 - (prm - 1.) * 2.222); p = c + (p - c) * (.62 + d * .8); glow = pow(1. - d, 2.) * 1.7 - .25; }
+    else { glow = pow(.5 + .5 * sin((prm - uTime * .24) * 18.85), 10.) * 1.5; if (tone > .9) glow += .3; }
   } else {
     p.xz = rot(uTime * .3) * p.xz;
     glow = pow(fract(prm * 2. - uTime * .25), 6.) * 1.5; if (tone > .9) glow += .35;

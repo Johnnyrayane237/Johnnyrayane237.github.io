@@ -247,7 +247,7 @@ function setSlide(i) {
   $$('.slide__metrics b', next).forEach((el, j) => gsap.delayedCall(0.3 + j * 0.09, () => scramble(el, 0.7)));
 }
 if (reduced) {
-  // Sans animation : les six projets s'affichent simplement l'un sous l'autre.
+  // Sans animation : tous les projets s'affichent simplement l'un sous l'autre.
   $('#travaux').classList.add('work--static');
   slides.forEach((s) => { s.classList.add('is-active'); s.setAttribute('aria-hidden', 'false'); });
 } else {
