@@ -1,11 +1,11 @@
 // Pipeline en 3D — « la machine » : sept plateformes reliées par des rails lumineux.
-// Le paquet (l'e-mail) avance avec le défilement, se dédouble à la décision,
-// puis attend à l'étape « Brouillon » qu'une personne valide.
+// Le paquet (l'appel manqué devenu conversation SMS) avance avec le défilement, se dédouble à l'agenda
+// (le client reçoit les créneaux, le responsable une alerte), puis attend que le client — le visiteur — choisisse.
 // Le rendu ne tourne que lorsque la section est à l'écran.
 import {
   WebGLRenderer, Scene, PerspectiveCamera, Group, Mesh, Vector3, Vector2, Color,
-  MeshStandardMaterial, MeshBasicMaterial, ShaderMaterial, LineBasicMaterial, LineSegments, PointsMaterial,
-  BufferGeometry, BufferAttribute, BoxGeometry, PlaneGeometry, SphereGeometry, IcosahedronGeometry, OctahedronGeometry,
+  MeshStandardMaterial, MeshBasicMaterial, ShaderMaterial, PointsMaterial,
+  BufferGeometry, BufferAttribute, BoxGeometry, PlaneGeometry, SphereGeometry, IcosahedronGeometry,
   TorusGeometry, RingGeometry, TubeGeometry, CubicBezierCurve3, AmbientLight, DirectionalLight, PointLight,
   CanvasTexture, Sprite, SpriteMaterial, Points, AdditiveBlending, DoubleSide, Plane, Raycaster,
 } from 'three';
@@ -51,26 +51,28 @@ function makeGlyph(i, accent) {
   const M = (base = 0.1) => { const m = new MeshStandardMaterial({ color: 0x1c2942, emissive: accent.clone(), emissiveIntensity: base, metalness: 0.15, roughness: 0.4, flatShading: true }); m.userData.base = base; mats.push(m); return m; };
   const add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
   const white = new MeshBasicMaterial({ color: 0xeaf1ff });
-  if (i === 0) { // Gmail : une enveloppe
-    add(new BoxGeometry(0.74, 0.48, 0.06), M());
-    const pts = new Float32Array([-0.37, 0.24, 0, 0, -0.03, 0, 0, -0.03, 0, 0.37, 0.24, 0]);
-    [0.034, -0.034].forEach((z) => { const lg = new BufferGeometry(); lg.setAttribute('position', new BufferAttribute(pts, 3)); const l = new LineSegments(lg, new LineBasicMaterial({ color: 0xeaf1ff })); l.position.z = z; g.add(l); });
-  } else if (i === 1) { // Préparer : des couches de contexte
-    for (let k = 0; k < 3; k++) add(new BoxGeometry(0.66, 0.06, 0.46), M(), 0, (k - 1) * 0.17, 0).rotation.y = (k - 1) * 0.28;
+  if (i === 0) { // Appel manqué : un téléphone qui sonne
+    add(new BoxGeometry(0.4, 0.72, 0.07), M());
+    [0.04, -0.04].forEach((z) => { add(new BoxGeometry(0.14, 0.03, 0.008), white, 0, 0.29, z); add(new BoxGeometry(0.3, 0.5, 0.004), new MeshBasicMaterial({ color: 0x0b1424 }), 0, -0.02, z); });
+    [0.34, 0.46].forEach((r) => { const arc = add(new TorusGeometry(r, 0.022, 8, 24, Math.PI / 2.6), M(0.45), 0.05, 0.12, 0); arc.rotation.z = -0.15; });
+  } else if (i === 1) { // SMS d'accueil : une bulle de message
+    add(new BoxGeometry(0.72, 0.44, 0.06), M());
+    add(new BoxGeometry(0.16, 0.16, 0.06), M(), -0.2, -0.22, 0).rotation.z = Math.PI / 4;
+    [-0.17, 0, 0.17].forEach((x) => [0.036, -0.036].forEach((z) => add(new SphereGeometry(0.045, 12, 10), white, x, 0.01, z)));
   } else if (i === 2) { // Claude : un noyau dans sa cage
     add(new IcosahedronGeometry(0.2, 0), M(0.45));
     const shell = new Mesh(new IcosahedronGeometry(0.42, 1), new MeshBasicMaterial({ color: accent, wireframe: true, transparent: true, opacity: 0.5 }));
     g.add(shell); g.userData.shell = shell;
-  } else if (i === 3) { // Décision : un losange
-    add(new OctahedronGeometry(0.36, 0), M()).scale.y = 1.3;
-  } else if (i === 4) { // Brouillon : une feuille
+  } else if (i === 3) { // Agenda : trois créneaux libres, celui du milieu en avant
+    [0.2, 0, -0.2].forEach((y, k) => add(new BoxGeometry(k === 1 ? 0.7 : 0.6, 0.13, 0.07), M(k === 1 ? 0.3 : 0.1), 0, y, k === 1 ? 0.06 : 0));
+  } else if (i === 4) { // Créneaux proposés : le SMS avec les trois choix
     add(new BoxGeometry(0.5, 0.66, 0.04), M());
     [0.17, 0.03, -0.11].forEach((y, k) => [0.025, -0.025].forEach((z) => add(new BoxGeometry(k === 2 ? 0.2 : 0.34, 0.035, 0.008), white, k === 2 ? -0.07 : 0, y, z)));
   } else if (i === 5) { // Alerte : un point d'exclamation cerclé
     add(new TorusGeometry(0.34, 0.036, 10, 44), M());
     add(new BoxGeometry(0.075, 0.27, 0.075), M(0.45), 0, 0.06, 0);
     add(new SphereGeometry(0.052, 12, 10), M(0.45), 0, -0.17, 0);
-  } else { // Journal : un tableau de cellules
+  } else { // Suivi : l'agenda du responsable, case par case
     for (let k = 0; k < 9; k++) add(new BoxGeometry(0.17, 0.17, 0.17), M(), ((k % 3) - 1) * 0.23, (1 - Math.floor(k / 3)) * 0.23, 0);
   }
   return { g, mats };

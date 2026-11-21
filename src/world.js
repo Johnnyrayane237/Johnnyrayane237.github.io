@@ -12,7 +12,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const VOICE_ORB = [-1.3, 0.05, 0];
 
 // Ordre du voyage : la valeur « k » avance le long de cette piste.
-export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'voice', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
+export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'sms', 'voice', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
 export const K = Object.fromEntries(TRACK.map((n, i) => [n, i]));
 
 // ---------- Hasard reproductible ----------
@@ -67,6 +67,21 @@ function builder(N, seed) {
   return b;
 }
 
+// Contour d'un rectangle arrondi (centré), parcouru dans le sens des aiguilles d'une montre : u ∈ [0, 1] → [x, y].
+function rrPoint(u, w, h, r) {
+  const sw = w - 2 * r, sh = h - 2 * r, arc = (Math.PI * r) / 2, Q = Math.PI / 2;
+  const corner = (cx, cy, a0) => (t) => [cx + Math.cos(a0 - t * Q) * r, cy + Math.sin(a0 - t * Q) * r];
+  const segs = [
+    [sw, (t) => [-sw / 2 + t * sw, h / 2]], [arc, corner(sw / 2, sh / 2, Q)],
+    [sh, (t) => [w / 2, sh / 2 - t * sh]], [arc, corner(sw / 2, -sh / 2, 0)],
+    [sw, (t) => [sw / 2 - t * sw, -h / 2]], [arc, corner(-sw / 2, -sh / 2, -Q)],
+    [sh, (t) => [-w / 2, -sh / 2 + t * sh]], [arc, corner(-sw / 2, sh / 2, Math.PI)],
+  ];
+  let d = u * (2 * sw + 2 * sh + 4 * arc);
+  for (const [len, f] of segs) { if (d <= len) return f(len > 0 ? d / len : 0); d -= len; }
+  return segs[0][1](0);
+}
+
 // ---------- Les formes ----------
 const SHAPES = {
   // Galaxie de départ : les points arrivent de loin.
@@ -117,6 +132,53 @@ const SHAPES = {
     }
     b.ring(b.n(0.1), [0, 0, 0], 1.28, 'yz', 0.5, 0.015, 2);
     b.ring(b.n(0.06), [0, 0, 0], 0.92, 'yz', 1, 0.012, 3);
+    return b.done();
+  },
+  // Accueil client par SMS : le téléphone sonne dans le vide, puis la conversation s'écrit bulle après bulle,
+  // et trois créneaux tournent autour de lui sur une orbite inclinée ; celui que le client choisit s'allume.
+  // prm : 1–1,32 bulles (ordre d'arrivée) · 1,6 voyant d'appel manqué · 2–2,2 ondes · 3–3,3 orbite des créneaux · 4 structure calme (4,1–4,2 : face avant, plus lumineuse).
+  sms(N) {
+    const b = builder(N, 111), W = 1.22, H = 2.3, R = 0.2;
+    const outline = (n, w, h, r, cx, cy, z, tone, prm, wj = 0.008) => { for (let k = 0; k < n; k++) { const q = rrPoint(b.rnd(), w, h, r); b.put(cx + q[0] + b.j(wj), cy + q[1] + b.j(wj), z + b.j(wj), tone, prm); } };
+    // Le téléphone : la face, le dos, le bord de l'écran, l'écouteur et la barre du bas.
+    outline(b.n(0.06), W, H, R, 0, 0, 0.06, 0, 4.1);
+    outline(b.n(0.045), W, H, R, 0, 0, -0.06, 0, 4);
+    outline(b.n(0.035), W - 0.12, H - 0.12, R - 0.05, 0, 0, 0.065, 0, 4.2);
+    b.line(b.n(0.006), [-0.14, H / 2 - 0.12, 0.07], [0.14, H / 2 - 0.12, 0.07], 0, 0.008, 4, 4);
+    b.line(b.n(0.006), [-0.2, -H / 2 + 0.1, 0.07], [0.2, -H / 2 + 0.1, 0.07], 0, 0.008, 4, 4);
+    // Le voyant de l'appel manqué.
+    b.shell(b.n(0.008), [W / 2 - 0.2, H / 2 - 0.22, 0.09], 0.05, 1, 1.6);
+    // La conversation : l'entreprise à droite (couleur d'accent), le client à gauche.
+    const bubbles = [[1, 0.8, 0.27], [0, 0.6, 0.2], [1, 0.84, 0.44], [0, 0.28, 0.18], [1, 0.72, 0.24]];
+    let y = H / 2 - 0.36;
+    bubbles.forEach(([mine, bw, bh], k) => {
+      const cx = mine ? W / 2 - 0.13 - bw / 2 : -W / 2 + 0.13 + bw / 2, cy = y - bh / 2, prm = 1 + k * 0.08, tone = mine ? 1 : 0;
+      outline(b.n(0.022), bw, bh, Math.min(0.09, bh / 2), cx, cy, 0.08, tone, prm, 0.006);
+      const rows = Math.max(1, Math.round((bh - 0.08) / 0.1)), per = Math.floor(b.n(0.026) / rows);
+      for (let l = 0; l < rows; l++) {
+        const ly = rows === 1 ? cy : cy + bh / 2 - 0.12 - l * 0.1, lw = (bw - 0.18) * (rows > 1 && l === rows - 1 ? 0.55 : 1), x0 = cx - (bw - 0.18) / 2;
+        b.line(per, [x0, ly, 0.08], [x0 + lw, ly, 0.08], tone, 0.01, prm, prm);
+      }
+      const tx = mine ? cx + bw / 2 - 0.06 : cx - bw / 2 + 0.06, dir = mine ? 1 : -1;
+      b.line(b.n(0.004), [tx, cy - bh / 2, 0.08], [tx + dir * 0.07, cy - bh / 2 - 0.06, 0.08], tone, 0.008, prm, prm);
+      y -= bh + 0.1;
+    });
+    // Les ondes de l'appel manqué, à la forme du téléphone.
+    for (let r = 0; r < 3; r++) for (let k = 0, n = b.n(0.045); k < n; k++) { const a = b.rnd() * TAU; b.put(Math.cos(a) + b.j(0.012), Math.sin(a) * 1.3 + b.j(0.012), -0.3 + b.j(0.012), 0.6, 2 + r * 0.1); }
+    // Les trois créneaux proposés, en orbite ; le choisi est plein et coché.
+    const RO = 1.48;
+    b.ring(b.n(0.025), [0, 0, 0], RO, 'xz', 0, 0.01, 3.3);
+    for (let s = 0; s < 3; s++) {
+      const a = 0.55 + (s * TAU) / 3, c = [Math.cos(a) * RO, 0, Math.sin(a) * RO], u = [-Math.sin(a), 0, Math.cos(a)], chosen = s === 1, prm = 3 + s * 0.1;
+      const P = (x, yy, tone) => b.put(c[0] + u[0] * x + b.j(0.006), yy + b.j(0.006), c[2] + u[2] * x + b.j(0.006), tone, prm);
+      for (let k = 0, n = b.n(0.03); k < n; k++) { const q = rrPoint(b.rnd(), 0.58, 0.2, 0.1); P(q[0], q[1], chosen ? 1 : 0.35); }
+      if (chosen) {
+        for (let k = 0, n = b.n(0.03); k < n; k++) P((b.rnd() - 0.5) * 0.5, (b.rnd() - 0.5) * 0.13, 1);
+        const tick = [[-0.09, 0.0], [-0.03, -0.05], [0.09, 0.06]];
+        for (let k = 0, n = b.n(0.01); k < n; k++) { const t = b.rnd(), seg = t < 0.35 ? 0 : 1, f = seg ? (t - 0.35) / 0.65 : t / 0.35, A = tick[seg], B = tick[seg + 1]; b.put(c[0] * 1.03 + u[0] * lerp(A[0], B[0], f), lerp(A[1], B[1], f), c[2] * 1.03 + u[2] * lerp(A[0], B[0], f), 1, prm); }
+      }
+    }
+    b.ring(b.n(0.03), [0, -1.5, 0], 1.7, 'xz', 0, 0.012, 4);
     return b.done();
   },
   // Standardiste vocal : l'orbe de la voix respire et parle ; la parole ondule, se redresse en donnée,
@@ -272,6 +334,7 @@ const STOPS = {
   name: { shape: 'name', fx: 0, col: ['#DCE8FF', '#2F80FF'], fade: 0.95, halo: 0.2, sway: 0.05, pose: (v) => [0, v.mobile ? 0.25 : 0.05, 0, 0, 0, 0, v.hw * 0.9] },
   sphere: { shape: 'sphere', fx: 1, col: ['#2F80FF', '#EAF1FF'], fade: 1, halo: 1, sway: 0, pose: (v) => [0, 0, 0, 0, 0, 0.18, v.mobile ? 0.77 : 1] },
   terrain: { shape: 'terrain', fx: 2, col: ['#2F80FF', '#EAF1FF'], fade: 0.42, halo: 0, sway: 0, pose: () => [0, 0, 0, 0.55, 0, 0.18, 1] },
+  sms: { shape: 'sms', fx: 12, col: ['#2F80FF', '#FF7AD9'], fade: 1, halo: 0.35, sway: 0.2, pose: (v) => side(v, 0.06, -0.36, 0.92) },
   voice: { shape: 'voice', fx: 11, col: ['#2F80FF', '#C49BFF'], fade: 1, halo: 0.35, sway: 0.18, pose: (v) => side(v, 0.06, -0.42, 0.95) },
   wave: { shape: 'wave', fx: 3, col: ['#2F80FF', '#7CF5D0'], fade: 1, halo: 0.35, sway: 0.22, pose: (v) => side(v, 0.12, -0.5, 0.92) },
   radar: { shape: 'radar', fx: 4, col: ['#2F80FF', '#35E08B'], fade: 1, halo: 0.3, sway: 0.12, pose: (v) => side(v, 0.95, -0.25, 0.95) },
@@ -352,6 +415,21 @@ vec3 life(vec3 p, vec2 meta, float id, out float glow){
   } else if (id < 9.5) {
     p.xy = rot(sin(uTime * .2) * .12) * p.xy;
     if (tone > .5) glow = .3 + .35 * sin(uTime * 2. + aRand.x * 30.); else glow = pow(fract(prm - uTime * .35), 6.) * 1.6;
+  } else if (id > 11.5) {
+    // Accueil SMS : le voyant clignote, les ondes de l'appel manqué s'élargissent, la conversation s'écrit bulle après bulle,
+    // les trois créneaux tournent sur une orbite inclinée, et celui choisi par le client bat.
+    if (prm > 3.5) glow = (prm > 4.05 ? .24 : .07) + .1 * sin(uTime * .8 + p.y * 3.);
+    else if (prm > 2.5) {
+      p.xz = rot(uTime * .28) * p.xz; p.yz = rot(.34) * p.yz;
+      glow = tone > .9 ? .5 + .45 * sin(uTime * 3.2) : .1 + .08 * sin(uTime * 1.4 + prm * 30.);
+    }
+    else if (prm > 1.9) { float d = fract(uTime * .32 - (prm - 2.) * 3.333); p.xy *= .85 + d * 1.15; glow = pow(1. - d, 2.) * 1.5 - .35; }
+    else if (prm > 1.5) glow = .4 + .9 * step(.5, fract(uTime * 1.1));
+    else {
+      float s = fract(uTime * .1) * 1.3, at = (prm - 1.) / .08 / 5.5, age = s - at, on = smoothstep(0., .03, age);
+      p.y -= (1. - on) * .12;
+      glow = mix(-.62, .22, on) + smoothstep(0., .012, age) * smoothstep(.16, .02, age) * 1.5;
+    }
   } else if (id > 10.5) {
     // Standardiste : l'orbe respire et parle, les ondes partent vers l'agenda, le créneau réservé bat.
     vec3 c = vec3(-1.3, .05, 0.);

@@ -10,7 +10,7 @@ import Lenis from 'lenis';
 import { content, contact } from './i18n.js';
 import { initWorld, K } from './world.js';
 import { initExtras, scramble } from './extras.js';
-import { renderHood, hoodTexts, renderFeatures, initHood } from './hood-render.js';
+import { renderFeatures } from './hood-render.js';
 import { initPipeline3D } from './pipeline-3d.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -71,10 +71,6 @@ $('#pipelineLog').innerHTML = L.pipeline.log.map((l) => `<p>${esc(l)}</p>`).join
 $('#reel').innerHTML = L.motion.map((m, i) => `<button class="clip" type="button" style="aspect-ratio:${m.ratio}" data-video="${m.src}" data-cursor="view" aria-label="${esc(T['motion.play'])} — ${esc(m.title)}">
   <video muted loop playsinline preload="none" poster="${m.poster}" data-src="${m.src}"></video><span class="clip__n mono">${pad(i + 1)}</span>
   <span class="clip__cap"><strong>${esc(m.title)}</strong><span class="mono">${esc(m.meta)}</span></span></button>`).join('');
-
-const HD = hoodTexts(lang);
-$('#hoodLabel').textContent = HD.label; $('#hoodTitle').innerHTML = HD.title; $('#hoodIntro').textContent = HD.intro; $('#hoodNote').textContent = HD.note;
-$('#hood').innerHTML = renderHood(lang);
 
 $('#caps').innerHTML = L.caps.map(([t, items], i) => `<article class="cap"><span class="cap__n mono">${pad(i + 1)}</span><h3>${esc(t)}</h3><ul>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></article>`).join('');
 $('#path').innerHTML = L.path.map(([y, t, o, d]) => `<li class="step"><span class="step__y mono">${esc(y)}</span><div><h3>${esc(t)}</h3><p class="step__o">${esc(o)}</p></div><p class="step__d">${esc(d)}</p></li>`).join('');
@@ -505,11 +501,8 @@ if (fine && !reduced) {
   }, { passive: true });
 }
 
-// ---------- Sous le capot ----------
-initHood({ reduced, lang });
-
 // ---------- Couche cinéma ----------
-initExtras({ lenis, hero, reduced, fine, lang, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#travaux', T['nav.work']], ['#pipeline', T['nav.pipeline']], ['#sous-le-capot', lang === 'fr' ? 'Sous le capot' : 'Under the hood'], ['#motion', T['nav.motion']], ['#capacites', lang === 'fr' ? 'Capacités' : 'Capabilities'], ['#parcours', T['nav.path']], ['#contact', T['nav.contact']]] });
+initExtras({ lenis, hero, reduced, fine, lang, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#travaux', T['nav.work']], ['#pipeline', T['nav.pipeline']], ['#motion', T['nav.motion']], ['#capacites', lang === 'fr' ? 'Capacités' : 'Capabilities'], ['#parcours', T['nav.path']], ['#contact', T['nav.contact']]] });
 
 // ---------- Divers ----------
 langBtn.addEventListener('click', () => {

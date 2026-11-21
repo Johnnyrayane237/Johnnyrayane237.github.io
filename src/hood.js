@@ -73,6 +73,15 @@ export const hood = {
 // « Sous le capot » dans les fiches projet
 export const features = {
   fr: {
+    'accueil-sms': [
+      ['Réponse dans la minute', "Chaque appel manqué reçoit un SMS ; deux appels rapprochés n'en déclenchent qu'un seul."],
+      ['Créneaux sûrs', "Seuls les créneaux vraiment libres sont proposés, avec une marge de trajet entre deux rendez-vous ; un créneau pris entre-temps est remplacé."],
+      ['Rappels en un mot', 'La veille à 18 h, puis 3 h avant : le client répond OUI, DEPLACER ou ANNULER.'],
+      ["Liste d'attente", "Une place libérée est proposée aux suivants : le premier OUI l'emporte, les autres sont prévenus."],
+      ['Absences', 'Un client absent reçoit une relance polie et de nouveaux créneaux.'],
+      ['Respect du client', 'STOP respecté, aucun SMS la nuit, numéros masqués et fournisseurs traités à part.'],
+      ['Le responsable garde la main', 'Chaque alerte arrive sur son téléphone ; PAUSE suspend tous les SMS automatiques, REPRISE les relance.'],
+    ],
     standardiste: [
       ['Rendez-vous sans erreur', "Lucie ne propose que des créneaux vraiment libres, et un même créneau ne peut jamais être pris deux fois."],
       ['Déplacer ou annuler', "Le client gère son rendez-vous au téléphone ; seul l'appelant concerné peut le modifier."],
@@ -107,17 +116,22 @@ export const features = {
       ['Accessibilité', 'Clavier, annonces vocales en français, mouvement réduit et contrôles automatiques avec axe.'],
     ],
     aiguilleur: [
-      ['Tour de contrôle', 'Le journal affiché en direct, avec une copie locale pour respecter le quota de Google.'],
-      ['Chien de garde', 'Contrôle toutes les 15 min : Gmail, Claude, Google Sheet, e-mails bloqués, budget IA.'],
-      ['Rapport du lundi', 'La semaine de la direction, chaque lundi à 8 h, par e-mail et sur Telegram.'],
-      ['Relance des urgences', 'Bouton « Je m’en occupe » sur Telegram, relance après 30 min sans prise en charge.'],
-      ['Corrections', 'Les 3 corrections les plus proches guident Claude à chaque nouvel e-mail.'],
-      ['Échéances légales', 'Délais en jours ouvrés hors fériés, rappel la veille à 8 h, direction en copie le jour J.'],
-      ['Garde-fous', 'Règles codées en dur, anti-manipulation, IBAN masqué, repli vers l’accueil si Claude ne répond pas.'],
-      ['Banc d’essai', '32 e-mails pièges testés sans rien envoyer avant chaque démo.'],
+      ['Bon collègue', 'Une fiche claire au bon collègue : résumé, action à faire, proposition de réponse.'],
+      ['Urgences', 'Alerte sur Telegram et relance après 30 min sans prise en charge.'],
+      ['Rapport du lundi', 'La semaine de la direction, chaque lundi à 8 h.'],
+      ['Garde-fous', 'Rien ne part sans validation ; repli vers l’accueil si Claude ne répond pas.'],
     ],
   },
   en: {
+    'accueil-sms': [
+      ['Reply within a minute', 'Every missed call gets a text; two calls close together trigger only one.'],
+      ['Safe slots', 'Only truly free slots are offered, with travel time between appointments; a slot taken in the meantime is replaced.'],
+      ['One-word reminders', 'The evening before at 6 pm, then 3 hours before: the customer replies yes, move or cancel.'],
+      ['Waiting list', 'A freed slot is offered to the next people: the first yes wins, the others are told.'],
+      ['No-shows', 'A customer who misses the appointment gets a polite follow-up and new slots.'],
+      ['Respect for customers', 'STOP is honoured, no texts at night, hidden numbers and suppliers handled separately.'],
+      ['The manager stays in control', 'Every alert reaches their phone; PAUSE suspends all automatic texts, RESUME restarts them.'],
+    ],
     standardiste: [
       ['Error-free booking', 'Lucie only offers truly free slots, and the same slot can never be booked twice.'],
       ['Move or cancel', 'Customers manage their appointment by phone; only the right caller can change it.'],
@@ -152,14 +166,10 @@ export const features = {
       ['Accessibility', 'Keyboard, French screen-reader announcements, reduced motion and automated axe checks.'],
     ],
     aiguilleur: [
-      ['Control tower', 'The log shown live, with a local copy to respect Google’s quota.'],
-      ['Watchdog', 'Checks every 15 min: Gmail, Claude, Google Sheet, stuck emails, AI budget.'],
-      ['Monday report', 'Management’s week, every Monday at 8 am, by email and Telegram.'],
-      ['Urgent follow-up', '“I’ll take it” button on Telegram, follow-up after 30 min without pickup.'],
-      ['Corrections', 'The 3 closest corrections guide Claude with every new email.'],
-      ['Legal deadlines', 'Business-day deadlines excluding holidays, reminder the day before at 8 am, management copied on the day.'],
-      ['Guardrails', 'Hard-coded rules, anti-manipulation, masked IBAN, fallback to the front desk if Claude fails.'],
-      ['Test bench', '32 trap emails tested without sending anything before every demo.'],
+      ['Right teammate', 'A clear brief for the right teammate: summary, action, suggested reply.'],
+      ['Emergencies', 'Telegram alert and follow-up after 30 min without pickup.'],
+      ['Monday report', 'Management’s week, every Monday at 8 am.'],
+      ['Guardrails', 'Nothing is sent without approval; fallback to the front desk if Claude fails.'],
     ],
   },
 };
