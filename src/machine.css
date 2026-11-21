@@ -110,3 +110,54 @@
   .quick-btn { font-size: .9rem; }
 }
 @media (prefers-reduced-motion: reduce) { .quick-btn__ring { animation: none; } }
+
+/* Repère du voyage : la route parcourue le long du bord droit, une balise par étape */
+.route { --c: var(--accent); position: fixed; right: clamp(12px, 1.7vw, 28px); top: 50%; z-index: 94; width: 16px; height: min(52vh, 420px); transform: translateY(-50%); pointer-events: none; font-size: .6rem; color: #cfd4df; }
+.route__line { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, .13); }
+.route__line i { position: absolute; inset: 0; background: linear-gradient(#8ab8ff, var(--c)); transform: scaleY(0); transform-origin: top; box-shadow: 0 0 10px var(--c); transition: background .6s, box-shadow .6s; }
+.route__stop { position: absolute; left: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; display: grid; place-items: center; pointer-events: auto; }
+.route__stop::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .32); transition: background .4s, transform .4s, box-shadow .4s; }
+.route__stop.is-sub::before { width: 3px; height: 3px; }
+.route__stop.is-done::before { background: rgba(138, 184, 255, .8); }
+.route__stop.is-here::before { background: var(--c, #fff); transform: scale(1.4); box-shadow: 0 0 10px var(--c, var(--accent)); }
+.route__stop::after { content: attr(data-label); position: absolute; right: 24px; top: 50%; white-space: nowrap; text-transform: uppercase; letter-spacing: .06em; color: #fff; opacity: 0; transform: translate(6px, -50%); transition: opacity .3s, transform .3s; pointer-events: none; }
+.route__stop:hover::after, .route__stop:focus-visible::after { opacity: .85; transform: translate(0, -50%); }
+.route__stop:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; border-radius: 50%; }
+.route__ship { position: absolute; left: 50%; top: 0; width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; border: 1px solid var(--c); border-radius: 50%; box-shadow: 0 0 14px var(--c), inset 0 0 6px var(--c); transition: border-color .6s, box-shadow .6s; }
+.route__ship::after { content: ''; position: absolute; inset: -6px; border: 1px solid var(--c); border-radius: 50%; opacity: 0; }
+.route__ship b { position: absolute; right: 26px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-weight: 500; text-transform: uppercase; letter-spacing: .07em; color: #fff; text-shadow: 0 0 12px rgba(6, 7, 10, .9); opacity: 0; transition: opacity .7s; }
+.route.is-talking .route__ship b { opacity: 1; }
+.route.is-landed .route__ship::after { animation: land 1.8s var(--ease) infinite; }
+@keyframes land { from { transform: scale(.6); opacity: .9; } to { transform: scale(2.6); opacity: 0; } }
+.route:has(.route__stop:hover) .route__ship b { opacity: 0 !important; }
+@media (max-width: 760px) { .route { right: 6px; height: 40vh; } .route__ship b, .route__stop::after { display: none; } .route__stop { width: 14px; height: 14px; margin: -7px 0 0 -7px; } }
+@media (prefers-reduced-motion: reduce) { .route.is-landed .route__ship::after { animation: none; } }
+.is-loading .route { opacity: 0; }
+.route { transition: opacity .8s; }
+
+/* Écran couché et étroit (tablette à l'horizontale, petit portable) : texte à gauche, sculpture à droite */
+@media (max-width: 760px) and (orientation: landscape) {
+  .slide { width: 58%; align-content: center; gap: 8px; }
+  .slide__title { font-size: clamp(1.5rem, 4.4vw, 2.2rem); }
+  .slide__metrics b { font-size: 1.15rem; }
+}
+/* Écran peu haut : le texte se resserre pour laisser respirer la 3D */
+@media (max-height: 640px) and (orientation: landscape) {
+  .work__pin { padding-top: 70px; padding-bottom: 54px; gap: 8px; }
+  .slide { gap: 8px; }
+  .slide__title { font-size: clamp(1.5rem, 4.2vw, 3.1rem); }
+  .slide__sub { font-size: clamp(1rem, 1.6vw, 1.4rem); }
+  .slide__summary { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: .86rem; }
+  .slide__metrics > div { padding: 8px 10px; }
+  .slide__metrics b { font-size: 1.2rem; }
+  .slide__metrics span { font-size: .66rem; margin-top: 4px; }
+  .slide__tags { display: none; }
+  .slide__open { padding: 11px 20px; }
+  .work__count { top: 62px; font-size: 4.4rem; }
+}
+@media (max-height: 460px) and (orientation: landscape) {
+  .slide__summary, .slide__metrics span { display: none; }
+  .work__rail button span { display: none; }
+}
+/* Neuf projets : sous 1100 px, le rail ne garde que les numéros (le nom est déjà dans le titre) */
+@media (max-width: 1100px) { .work__rail button span { display: none; } }

@@ -4,8 +4,8 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 const STR = {
-  fr: { soundOn: 'Son : activé', soundOff: 'Son : coupé', fxOn: 'Réduire les effets', fxOff: 'Rétablir les effets', mail: 'Écrire à' },
-  en: { soundOn: 'Sound: on', soundOff: 'Sound: off', fxOn: 'Reduce effects', fxOff: 'Restore effects', mail: 'Write to' },
+  fr: { soundOn: 'Son : activé', soundOff: 'Son : coupé', fxOn: 'Réduire les effets', fxOff: 'Rétablir les effets', mail: 'Écrire à', route: 'Itinéraire du voyage', go: 'Aller à', here: 'Vous êtes ici', land: 'Arrivée' },
+  en: { soundOn: 'Sound: on', soundOff: 'Sound: off', fxOn: 'Reduce effects', fxOff: 'Restore effects', mail: 'Write to', route: 'Journey route', go: 'Go to', here: 'You are here', land: 'Arrival' },
 };
 const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignoré */ } } };
 
@@ -58,7 +58,7 @@ export function scramble(el, dur = 0.9) {
   }, onComplete: () => { el.textContent = txt; } });
 }
 
-export function initExtras({ lenis, hero, reduced, fine, lang, sections }) {
+export function initExtras({ lenis, hero, reduced, fine, lang, sections, routeStops }) {
   const S = STR[lang] || STR.fr;
   const root = document.documentElement;
   const $ = (s, r = document) => r.querySelector(s);
@@ -84,7 +84,7 @@ export function initExtras({ lenis, hero, reduced, fine, lang, sections }) {
 
   const soundBtn = $('#soundBtn'), fxBtn = $('#fxBtn');
   soundBtn.addEventListener('click', () => { const v = sound.toggle(); soundBtn.setAttribute('aria-pressed', v); soundBtn.classList.toggle('is-on', v); soundBtn.lastElementChild.textContent = v ? S.soundOn : S.soundOff; });
-  const setFx = (off, save = true) => { root.classList.toggle('fx-off', off); fxBtn.setAttribute('aria-pressed', off); fxBtn.lastElementChild.textContent = off ? S.fxOff : S.fxOn; if (save) store.set('fx', off ? 'off' : 'on'); };
+  const setFx = (off, save = true) => { root.classList.toggle('fx-off', off); if (hero) hero.calm = off; fxBtn.setAttribute('aria-pressed', off); fxBtn.lastElementChild.textContent = off ? S.fxOff : S.fxOn; if (save) store.set('fx', off ? 'off' : 'on'); };
   fxBtn.addEventListener('click', () => setFx(!root.classList.contains('fx-off')));
   if (store.get('fx') === 'off') setFx(true);
   // Version légère automatique : si l'appareil peine vraiment, le grain et les lueurs s'éteignent (sans rien enregistrer).
@@ -93,6 +93,48 @@ export function initExtras({ lenis, hero, reduced, fine, lang, sections }) {
   // Sons d'interface
   document.addEventListener('pointerover', (e) => { const t = e.target.closest('a, button, .row, .clip'); if (t && t !== document._lastHover) { document._lastHover = t; sound.hover(); } if (!t) document._lastHover = null; });
   document.addEventListener('click', (e) => { if (e.target.closest('.row, .clip')) sound.open(); else if (e.target.closest('a, button')) sound.click(); });
+
+  // Repère du voyage : la route parcourue, une balise par étape, et le visiteur qui avance avec le défilement.
+  if (routeStops) {
+    const route = document.createElement('nav'); route.className = 'route mono'; route.setAttribute('aria-label', S.route);
+    route.innerHTML = '<span class="route__line"><i></i></span><span class="route__ship" aria-hidden="true"><b></b></span>';
+    document.body.append(route);
+    const fill = route.querySelector('.route__line i'), ship = route.querySelector('.route__ship'), label = ship.querySelector('b');
+    let stops = [], dots = [], here = -1, hush = 0;
+    const build = () => {
+      stops = routeStops(); dots.forEach((d) => d.remove());
+      dots = stops.map((s, i) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'route__stop' + (s.sub ? ' is-sub' : '');
+        b.style.top = `${(i / (stops.length - 1)) * 100}%`; b.dataset.label = s.label; b.setAttribute('aria-label', `${S.go} : ${s.label}`);
+        if (s.color) b.style.setProperty('--c', s.color);
+        b.addEventListener('click', () => { if (lenis) lenis.scrollTo(s.y, { duration: 1.8 }); else window.scrollTo({ top: s.y, behavior: reduced ? 'auto' : 'smooth' }); });
+        route.append(b); return b;
+      });
+      here = -1; update();
+    };
+    // Position entre deux étapes : interpolée sur le défilement, pour que le repère glisse sans à-coups.
+    const update = () => {
+      if (stops.length < 2) return;
+      const y = window.scrollY; let t = stops.length - 1;
+      for (let i = 0; i < stops.length - 1; i++) { const a = stops[i].y, b = stops[i + 1].y; if (y < b) { t = i + (b > a ? Math.max(0, (y - a) / (b - a)) : 0); break; } }
+      const p = t / (stops.length - 1);
+      ship.style.top = `${p * 100}%`; fill.style.transform = `scaleY(${p})`;
+      const n = Math.round(t);
+      if (n !== here) {
+        here = n; const s = stops[n];
+        dots.forEach((d, i) => { d.classList.toggle('is-here', i === n); d.classList.toggle('is-done', i < n); d.toggleAttribute('aria-current', i === n); });
+        route.style.setProperty('--c', s.color || 'var(--accent)');
+        label.dataset.txt = s.end ? `${S.land} — ${s.label}` : s.label;
+        route.classList.toggle('is-landed', !!s.end);
+        if (reduced) label.textContent = label.dataset.txt; else scramble(label, 0.45);
+        // Le nom de l'étape s'affiche à l'arrivée, puis s'efface pour laisser la place à la 3D.
+        route.classList.add('is-talking'); clearTimeout(hush); if (!s.end) hush = setTimeout(() => route.classList.remove('is-talking'), 2600);
+      }
+    };
+    ScrollTrigger.addEventListener('refresh', build);
+    ScrollTrigger.create({ start: 0, end: 'max', onUpdate: update });
+    build();
+  }
 
   // Progression + section en cours
   const bar = $('#hudBar'), pct = $('#hudPct'), sec = $('#hudSection');

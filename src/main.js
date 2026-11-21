@@ -8,7 +8,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { content, contact } from './i18n.js';
-import { initWorld, K } from './world.js';
+import { initWorld, K, TRACK } from './world.js';
 import { initExtras, scramble } from './extras.js';
 import { renderFeatures } from './hood-render.js';
 import { initPipeline3D } from './pipeline-3d.js';
@@ -123,6 +123,8 @@ try { hero = initWorld($('#gl'), { reduced, onQuality: (lvl) => { if (lvl >= 2) 
 
 // ---------- Le voyage : chaque portion de page fait avancer le monde d'une étape ----------
 const segs = [];
+// Points d'arrivée de chaque étape (pour le repère du voyage).
+const stopST = {};
 const seg = (cfg, map) => { const st = ScrollTrigger.create(cfg); segs.push({ st, map }); return st; };
 function syncWorld() {
   if (!hero || introPlaying) return;
@@ -179,7 +181,7 @@ if (skipIntro || seen) {
 if (!reduced) {
   // Accueil → manifeste → premier projet (la suite du voyage est ajoutée plus bas, dans l'ordre de la page)
   if (hero) {
-    seg({ trigger: '.hero', start: 'top top', end: 'bottom top' });
+    stopST.manifeste = seg({ trigger: '.hero', start: 'top top', end: 'bottom top' });
     seg({ trigger: '#travaux', start: 'top 75%', endTrigger: '#workPin', end: 'top top' });
   }
   gsap.to('.hero__title', { yPercent: -18, scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
@@ -251,10 +253,49 @@ if (reduced) {
   workST = seg({ trigger: workPin, start: 'top top', end: () => `+=${Math.round(window.innerHeight * 0.85 * (NP - 1))}`, pin: true, scrub: true, invalidateOnRefresh: true,
     onUpdate: (s) => { setSlide(Math.round(s.progress * (NP - 1))); workBar.style.transform = `scaleX(${s.progress})`; } }, hold);
   // Suite du voyage : machine (fond calme) → capacités (constellation) → parcours (hélice) → contact (sphère)
-  seg({ trigger: '.pipeline', start: 'top bottom', end: 'top top' });
-  seg({ trigger: '#capacites', start: 'top bottom', end: 'top 25%' });
-  seg({ trigger: '#parcours', start: 'top bottom', end: 'top 25%' });
-  seg({ trigger: '#contact', start: 'top 80%', end: 'bottom bottom' });
+  stopST.pipeline = seg({ trigger: '.pipeline', start: 'top bottom', end: 'top top' });
+  stopST.motion = ScrollTrigger.create({ trigger: '#motion', start: 'top 30%' });
+  stopST.caps = seg({ trigger: '#capacites', start: 'top bottom', end: 'top 25%' });
+  stopST.path = seg({ trigger: '#parcours', start: 'top bottom', end: 'top 25%' });
+  stopST.contact = seg({ trigger: '#contact', start: 'top 80%', end: 'bottom bottom' });
+}
+
+// La sculpture de chaque projet se place dans la zone que son texte laisse libre : à côté sur grand écran,
+// au-dessus sur téléphone. C'est mesuré dans la page : la 3D respire à toutes les tailles, sans toucher le titre.
+function measureStages() {
+  if (!hero || reduced) return;
+  const pr = workPin.getBoundingClientRect(), stage = $('#workStage').getBoundingClientRect();
+  const top = stage.top - pr.top, bottom = $('#workRail').getBoundingClientRect().top - pr.top - 12, out = {};
+  const fit = (z) => (z.w > 60 && z.h > 60 ? Math.min(z.w / 3.2, z.h / 3.1) : 0);
+  slides.forEach((sl, i) => {
+    const kids = [...sl.children], sr = sl.getBoundingClientRect();
+    const t = sr.top - pr.top + Math.min(...kids.map((c) => c.offsetTop)) - 16;
+    const r = sr.left + Math.max(...kids.map((c) => c.offsetLeft + c.offsetWidth)) + 28;
+    const beside = { x: r, y: top, w: stage.right - r, h: bottom - top };
+    const above = { x: stage.left, y: Math.min(top, 64), w: stage.width, top: true }; above.h = t - above.y;
+    out[TRACK[K.devis + i]] = fit(beside) >= fit(above) ? beside : above;
+  });
+  hero.stages = out;
+}
+if (hero && !reduced) { measureStages(); ScrollTrigger.addEventListener('refresh', measureStages); }
+
+// Les étapes du voyage, dans l'ordre de la page : nom, couleur et position de défilement où l'on y arrive.
+function routeStops() {
+  const max = ScrollTrigger.maxScroll(window);
+  const top = (el) => (el ? el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.3 : 0);
+  const at = (st, sel, end = true) => (st ? (end ? st.end : st.start) : top($(sel)));
+  const list = [
+    { label: lang === 'fr' ? 'Accueil' : 'Home', y: 0 },
+    { label: lang === 'fr' ? 'Manifeste' : 'Manifesto', y: at(stopST.manifeste, '#manifeste') },
+    ...L.projects.map((p, i) => ({ label: p.short, color: p.color, sub: true, y: workST ? workST.start + (workST.end - workST.start) * (i / (NP - 1)) : top(slides[i]) })),
+    { label: T['nav.pipeline'], y: at(stopST.pipeline, '#pipeline') },
+    { label: T['nav.motion'], y: at(stopST.motion, '#motion', false) },
+    { label: lang === 'fr' ? 'Capacités' : 'Capabilities', y: at(stopST.caps, '#capacites') },
+    { label: T['nav.path'], y: at(stopST.path, '#parcours') },
+    { label: T['nav.contact'], y: max, end: true },
+  ];
+  list.forEach((s) => { s.y = Math.max(0, Math.min(max, s.y)); });
+  return list;
 }
 $('#workRail').addEventListener('click', (e) => {
   const b = e.target.closest('[data-go]'); if (!b || !workST) return;
@@ -502,7 +543,7 @@ if (fine && !reduced) {
 }
 
 // ---------- Couche cinéma ----------
-initExtras({ lenis, hero, reduced, fine, lang, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#travaux', T['nav.work']], ['#pipeline', T['nav.pipeline']], ['#motion', T['nav.motion']], ['#capacites', lang === 'fr' ? 'Capacités' : 'Capabilities'], ['#parcours', T['nav.path']], ['#contact', T['nav.contact']]] });
+initExtras({ lenis, hero, reduced, fine, lang, routeStops, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#travaux', T['nav.work']], ['#pipeline', T['nav.pipeline']], ['#motion', T['nav.motion']], ['#capacites', lang === 'fr' ? 'Capacités' : 'Capabilities'], ['#parcours', T['nav.path']], ['#contact', T['nav.contact']]] });
 
 // ---------- Divers ----------
 langBtn.addEventListener('click', () => {

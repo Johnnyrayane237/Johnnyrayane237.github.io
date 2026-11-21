@@ -7,6 +7,7 @@ import {
 } from 'three';
 
 const TAU = Math.PI * 2;
+const HALF = Math.tan((35 * Math.PI) / 360); // demi-ouverture verticale de la caméra (35°)
 const lerp = (a, b, t) => a + (b - a) * t;
 // Centre de l'orbe vocale du standardiste (repris tel quel dans le shader).
 const VOICE_ORB = [-1.3, 0.05, 0];
@@ -392,7 +393,18 @@ const SHAPES = {
 
 // ---------- Les étapes du voyage : forme, effet, couleurs, place à l'écran ----------
 // pose(v) → [x, y, z, rotX, rotY, rotZ, échelle] ; v = demi-largeur et demi-hauteur visibles, et « mobile ».
-const side = (v, rx, ry, s = 1) => (v.mobile ? [0, v.hh * 0.47, -0.4, rx, ry * 0.6, 0, 0.5 * s] : [v.hw * 0.47, 0.05, 0, rx, ry, 0, s]);
+// Quand la page a mesuré la place laissée libre par le texte (v.stages), la sculpture s'y centre et s'y ajuste.
+const FIT_W = 3.2, FIT_H = 3.1; // encombrement d'une sculpture à l'échelle 1
+const side = (v, rx, ry, s = 1) => {
+  const st = v.stages && v.stages[v.cur];
+  if (st && v.W) {
+    const z = st.top ? -0.4 : 0, hh = HALF * (7.2 - z), hw = hh * v.aspect;
+    const x = (((st.x + st.w / 2) / v.W) * 2 - 1) * hw, y = (1 - ((st.y + st.h / 2) / v.H) * 2) * hh;
+    const fit = Math.min(((st.w / v.W) * 2 * hw) / FIT_W, ((st.h / v.H) * 2 * hh) / FIT_H);
+    return [x, y, z, rx, st.top ? ry * 0.6 : ry, 0, s * Math.max(0.3, Math.min(st.top ? 0.62 : 1, fit))];
+  }
+  return v.mobile ? [0, v.hh * 0.47, -0.4, rx, ry * 0.6, 0, 0.5 * s] : [v.hw * 0.47, 0.05, 0, rx, ry, 0, s];
+};
 const STOPS = {
   cloud: { shape: 'cloud', fx: 0, col: ['#2F80FF', '#EAF1FF'], fade: 0, halo: 0, sway: 0, pose: () => [0, 0, -1, 0, 0, 0, 1.2] },
   name: { shape: 'name', fx: 0, col: ['#DCE8FF', '#2F80FF'], fade: 0.95, halo: 0.2, sway: 0.05, pose: (v) => [0, v.mobile ? 0.25 : 0.05, 0, 0, 0, 0, v.hw * 0.9] },
@@ -412,6 +424,20 @@ const STOPS = {
   path: { shape: 'helix', fx: 10, col: ['#2F80FF', '#8AB8FF'], fade: 0.55, halo: 0.15, sway: 0.1, pose: (v) => (v.mobile ? [v.hw * 0.55, 0, -1.2, 0, 0, 0.12, 0.7] : [v.hw * 0.72, 0, -0.4, 0, 0, 0.14, 1]) },
   end: { shape: 'sphere', fx: 1, col: ['#2F80FF', '#EAF1FF'], fade: 0.9, halo: 1, sway: 0, pose: (v) => [0, 0, 0, 0, 0, 0.18, v.mobile ? 0.77 : 1] },
 };
+
+// ---------- Le voyage ----------
+// Pour chaque passage d'une étape à la suivante : distance parcourue et manière d'y aller
+// (1 : on traverse la forme quittée et la suivante arrive du fond ; 0 : la forme se transforme sur place).
+const LEG = { cloud: [6, 0], name: [0, 0], path: [20, 1] };
+const legOf = (i) => LEG[TRACK[i]] || [14, 1];
+// Abscisse de chaque étape le long de la route.
+const AT = TRACK.map((_, i) => { let d = 0; for (let j = 0; j < i; j++) d += legOf(j)[0]; return d; });
+// Couleur d'une étape pour ses balises et sa porte (le blanc des formes calmes devient bleu clair).
+const tintOf = (key) => (STOPS[key].col[1] === '#EAF1FF' ? '#8AB8FF' : STOPS[key].col[1]);
+// Méandres de la route : le décor s'incline comme dans un virage.
+const bend = (x) => 2.4 * Math.sin(x * 0.043) + 1.1 * Math.sin(x * 0.107 + 1.3);
+const bendSlope = (x) => 2.4 * 0.043 * Math.cos(x * 0.043) + 1.1 * 0.107 * Math.cos(x * 0.107 + 1.3);
+const DEEP = 96; // profondeur du décor visible devant la caméra
 
 // ---------- Shaders ----------
 const NOISE = /* glsl */ `
@@ -437,10 +463,11 @@ float snoise(vec3 v){
 
 const vertex = /* glsl */ `
 uniform float uTime; uniform float uMix; uniform float uSize; uniform float uPixel; uniform float uVel;
+uniform float uFlight; uniform float uWarp; uniform float uAspect;
 uniform float uFxA; uniform float uFxB; uniform float uScatter; uniform float uFocus;
 uniform vec3 uMouse; uniform float uMouseStrength; uniform vec3 uPulsePos; uniform float uPulse;
 attribute vec3 aTo; attribute vec2 aMetaA; attribute vec2 aMetaB; attribute vec3 aRand;
-varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch;
+varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch; varying vec2 vDir;
 ${NOISE}
 mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
 
@@ -570,9 +597,11 @@ void main(){
   float m = clamp(uMix * 1.65 - aRand.x * .65, 0., 1.);
   m = m * m * (3. - 2. * m);
   float mid = sin(m * 3.14159);
-  vec3 pos = mix(a, b, m);
+  // Le voyage : la forme quittée file vers le visiteur et le dépasse, la suivante arrive du fond de l'espace.
+  float leave = 1. - step(.5, m), u = min(m * 2., 1.), v = max(m * 2. - 1., 0.);
+  vec3 pos = mix(mix(a, b, m), mix(b, a, leave), uFlight);
   vec3 sw = vec3(sin(pos.y * 1.9 + uTime * .9 + aRand.y * 6.283), cos(pos.z * 1.7 + uTime * .7 + aRand.z * 6.283), sin(pos.x * 2.1 + uTime * .8 + aRand.x * 6.283));
-  pos += sw * mid * uScatter * (.3 + aRand.z * .9);
+  pos += sw * mid * uScatter * (.3 + aRand.z * .9) * (1. - uFlight * .6);
   vec4 world = modelMatrix * vec4(pos, 1.);
   vec3 dm = world.xyz - uMouse; float dist = length(dm);
   world.xyz += normalize(dm + 1e-4) * smoothstep(1.1, 0., dist) * .42 * uMouseStrength;
@@ -580,28 +609,104 @@ void main(){
   vec3 dp = world.xyz - uPulsePos; float pd = length(dp) - (1. - uPulse) * 4.2; float ring = exp(-pd * pd * 6.) * uPulse;
   world.xyz += normalize(dp + 1e-4) * ring * .5;
   vec4 mv = viewMatrix * world;
+  float depth = -mv.z;
+  float go = uFlight * leave * u * u, come = uFlight * (1. - leave) * (1. - v) * (1. - v);
+  mv.z += go * (depth - 1.1);
+  mv.xy *= 1. + go * (.4 + aRand.y * 1.1);
+  mv.z -= come * (14. + aRand.z * 30.);
   gl_Position = projectionMatrix * mv;
   float glow = clamp(mix(gA, gB, m) + ring * 1.6, -.7, 2.4);
   float dust = mix(step(aMetaA.y, -.5), step(aMetaB.y, -.5), m);
   float big = step(.955, aRand.y);
-  float coc = abs(-mv.z - uFocus);
-  vStretch = 1. + uVel * (2.2 + aRand.x * 2.6);
-  float size = uSize * (.55 + aRand.z * .9) * (1. + max(glow, 0.) * .45) * mix(1., 3.4, big) * (1. + coc * .18) * (1. + mid * .5);
-  gl_PointSize = size * uPixel / -mv.z * vStretch;
-  vAlpha = (.5 + .5 * glow) * mix(1., .16, big) * mix(1., .3, dust) / (1. + coc * .5) * mix(hA, hB, m);
+  float coc = abs(depth - uFocus);
+  // Traînées : verticales quand la page défile, rayonnantes quand on file d'une étape à l'autre.
+  vec2 sc = gl_Position.xy / max(gl_Position.w, .001);
+  vDir = normalize(mix(vec2(0., 1.), normalize(vec2(sc.x * uAspect, sc.y) + 1e-4), uWarp) + 1e-4);
+  vStretch = 1. + uVel * (2.2 + aRand.x * 2.6) + uWarp * (1.2 + aRand.x * 2.8);
+  float size = uSize * (.55 + aRand.z * .9) * (1. + max(glow, 0.) * .45) * mix(1., 3.4, big) * (1. + coc * .18) * (1. + mid * .5 * (1. - uFlight));
+  float fly = mix(1., leave > .5 ? 1. - smoothstep(.42, 1., u) : smoothstep(0., .55, v), uFlight);
+  vAlpha = (.5 + .5 * glow) * mix(1., .16, big) * mix(1., .3, dust) / (1. + coc * .5) * mix(hA, hB, m) * fly * smoothstep(1.3, 2.8, -mv.z);
+  gl_PointSize = vAlpha > .002 ? size * uPixel / max(-mv.z, 1.6) * vStretch : 0.;
   vToneA = aMetaA.x; vToneB = aMetaB.x; vM = m;
 }`;
 
 const fragment = /* glsl */ `
 uniform vec3 uBaseA; uniform vec3 uAccA; uniform vec3 uBaseB; uniform vec3 uAccB; uniform float uFade;
-varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch;
+varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch; varying vec2 vDir;
 void main(){
-  vec2 c = gl_PointCoord - .5; c.x *= vStretch; float d = length(c);
+  vec2 c = gl_PointCoord - .5, dr = vec2(vDir.x, -vDir.y);
+  c = vec2(dot(c, vec2(-dr.y, dr.x)) * vStretch, dot(c, dr)); float d = length(c);
   if (d > .5) discard;
   float a = smoothstep(.5, .05, d) + smoothstep(.16, 0., d) * .5;
   vec3 col = mix(mix(uBaseA, uAccA, vToneA), mix(uBaseB, uAccB, vToneB), vM);
   gl_FragColor = vec4(col, a * vAlpha * uFade / sqrt(vStretch));
 }`;
+
+// Décor : étoiles (genre 0), fil de route (1), balises des étapes (2). Tout est placé par rapport à la caméra
+// et défile quand on avance : uTravel = distance parcourue, uDrift = lente dérive des étoiles au repos.
+const skyVertex = /* glsl */ `
+uniform float uTravel; uniform float uDrift; uniform float uWarp; uniform float uPixel; uniform float uTime; uniform float uFade; uniform float uAspect; uniform float uEnd;
+uniform vec3 uTint;
+attribute vec4 aP; attribute vec4 aS; attribute vec3 aC;
+varying float vA; varying vec2 vDir; varying float vStretch; varying vec3 vCol;
+float bend(float x){ return 2.4 * sin(x * .043) + 1.1 * sin(x * .107 + 1.3); }
+void main(){
+  float kind = aP.w, L = ${DEEP.toFixed(1)};
+  float dz = kind > 1.5 ? aP.z - uTravel : mod(aP.z - uTravel - (kind < .5 ? uDrift : 0.), L);
+  float s = uTravel + dz;
+  vec3 p = vec3(aP.x + bend(s) - bend(uTravel), aP.y, 7.2 - dz);
+  vec4 mv = modelViewMatrix * vec4(p, 1.);
+  gl_Position = projectionMatrix * mv;
+  vec2 sc = gl_Position.xy / max(gl_Position.w, .001);
+  vDir = normalize(vec2(sc.x * uAspect, sc.y) + 1e-4);
+  float streak = min(uWarp * 34. / (dz + 3.), 10.), size, a;
+  if (kind < .5) { size = aS.z * 58.; a = (.3 + .7 * aS.x) * (.65 + .35 * sin(uTime * (.8 + aS.y * 2.) + aS.y * 40.)); a *= smoothstep(.8, 4., dz); }
+  else if (kind < 1.5) { size = aS.z * 24.; a = .6 + aS.y * .6; streak *= .4; a *= smoothstep(3., 8., dz) * step(s, uEnd + 7.4); }
+  else { size = 84.; float here = 1. - smoothstep(.5, 3., abs(dz - 7.2)); a = (.5 + .3 * sin(uTime * 2.2 + aS.x * 1.7)) * (.45 + here * .8); streak = 0.; a *= smoothstep(3., 6., dz); }
+  vStretch = 1. + streak;
+  vA = a * (1. - smoothstep(L * .45, L, dz)) * step(0., dz) * uFade;
+  // Les points trop fins pour l'écran gardent deux pixels, en devenant plus discrets : ainsi ils restent visibles.
+  float ps = size * uPixel / max(-mv.z, 1.), floorPs = 2.2 * uPixel;
+  vA *= pow(min(1., ps / floorPs), .65);
+  gl_PointSize = vA > .003 ? max(ps, floorPs) * vStretch : 0.;
+  vCol = mix(aC, uTint, kind < .5 ? step(.8, aS.y) * .75 : 0.);
+}`;
+const skyFragment = /* glsl */ `
+varying float vA; varying vec2 vDir; varying float vStretch; varying vec3 vCol;
+void main(){
+  vec2 c = gl_PointCoord - .5, dr = vec2(vDir.x, -vDir.y);
+  vec2 q = vec2(dot(c, dr), dot(c, vec2(-dr.y, dr.x)) * vStretch);
+  float r = length(q) * 2.; if (r > 1.) discard;
+  gl_FragColor = vec4(vCol, (smoothstep(1., .0, r) * .75 + smoothstep(.45, .0, r) * .5) * vA / sqrt(vStretch));
+}`;
+// Porte : un anneau gradué que l'on traverse entre deux étapes, à la couleur de la destination.
+const gateFragment = /* glsl */ `
+uniform vec3 uTint; uniform float uA; uniform float uTime; uniform float uR; uniform float uSpin;
+varying vec2 vUv;
+void main(){
+  vec2 p = (vUv - .5) * 2. * (uR + .7);
+  float d = length(p), ang = atan(p.y, p.x) + uSpin;
+  float core = exp(-pow((d - uR) * 10., 2.));
+  float glow = exp(-pow((d - uR) * 2.4, 2.)) * .22;
+  float ticks = step(.8, fract(ang * 9.5493 + uTime * .04)) * exp(-pow((d - uR - .3) * 24., 2.)) * .75;
+  float arcs = smoothstep(.2, .35, sin(ang * 3. - uTime * .6)) * exp(-pow((d - uR + .2) * 20., 2.)) * .55;
+  vec3 c = mix(uTint, vec3(1.), core * .4);
+  gl_FragColor = vec4(c, (core + glow + ticks + arcs) * uA);
+}`;
+// Piste d'arrivée : des cercles qui s'ouvrent sous la dernière étape, et une onde au moment de se poser.
+const padFragment = /* glsl */ `
+uniform vec3 uTint; uniform float uA; uniform float uTime; uniform float uLand;
+varying vec2 vUv;
+void main(){
+  vec2 p = (vUv - .5) * 8.; float d = length(p);
+  float rings = 0.;
+  for (int i = 0; i < 3; i++) { float r = mod(uTime * .42 + float(i) * 1.05, 3.15) + .45; rings += exp(-pow((d - r) * 11., 2.)) * (1. - smoothstep(2.2, 3.5, r)); }
+  float base = exp(-pow((d - 1.6) * 16., 2.)) + exp(-pow((d - 2.5) * 34., 2.)) * .55;
+  float wave = exp(-pow((d - (1. - uLand) * 3.7) * 5., 2.)) * uLand * 3.;
+  float disc = (1. - smoothstep(0., 3.6, d)) * .07;
+  gl_FragColor = vec4(mix(uTint, vec3(1.), .3), (rings * .26 + base * .42 + wave + disc * .7) * uA * (1. - smoothstep(3.4, 3.95, d)));
+}`;
+const quadVertex = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }';
 
 export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
   const renderer = new WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
@@ -624,6 +729,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
 
   const uniforms = {
     uTime: { value: 0 }, uMix: { value: 0 }, uSize: { value: mobile ? 22 : 25 }, uPixel: { value: pixel }, uVel: { value: 0 },
+    uFlight: { value: 0 }, uWarp: { value: 0 }, uAspect: { value: 1 },
     uFxA: { value: 0 }, uFxB: { value: 0 }, uScatter: { value: 0.55 }, uFocus: { value: 7.2 },
     uMouse: { value: new Vector3(9, 9, 0) }, uMouseStrength: { value: 0 }, uFade: { value: 1 }, uPulsePos: { value: new Vector3(9, 9, 0) }, uPulse: { value: 0 },
     uBaseA: { value: new Color() }, uAccA: { value: new Color() }, uBaseB: { value: new Color() }, uAccB: { value: new Color() },
@@ -647,15 +753,61 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
     fragmentShader: 'uniform float uFade; varying float vA; varying float vT; void main(){ float d = length(gl_PointCoord - .5); if (d > .5) discard; float a = pow(1. - d * 2., 2.2); vec3 c = mix(vec3(1., .72, .38), vec3(.35, .62, 1.), step(.42, vT)); gl_FragColor = vec4(c, a * vA * uFade * .9); }' });
   scene.add(new Points(eGeo, eMat));
 
+  // ---------- Le décor du voyage ----------
+  const SN = mobile ? 900 : 2200, RN = mobile ? 300 : 560, BN = TRACK.length - K.sphere, TN = SN + RN + BN;
+  const aP = new Float32Array(TN * 4), aS = new Float32Array(TN * 4), aC = new Float32Array(TN * 3), col = new Color();
+  const STAR = ['#FFFFFF', '#CFE0FF', '#8AB8FF', '#FFE2B8'];
+  for (let i = 0; i < TN; i++) {
+    let x = 0, y = -1.95, z = 0, kind = 0, s1 = Math.random(), s2 = Math.random(), sz = 1;
+    if (i < SN) {
+      // Étoiles en tube autour du chemin : jamais sur l'axe, pour ne pas traverser la sculpture.
+      const a = Math.random() * TAU, r = 2.4 + Math.pow(Math.random(), 0.7) * 15;
+      x = Math.cos(a) * r; y = Math.sin(a) * r * 0.78; z = Math.random() * DEEP; sz = 0.35 + Math.pow(Math.random(), 3) * 1.5;
+      col.set(STAR[Math.floor(Math.random() * STAR.length)]);
+    } else if (i < SN + RN) {
+      // Fil de route : une ligne de points fins, une borne plus vive tous les 7 pas.
+      const t = (i - SN) / RN; kind = 1; z = t * DEEP; x = (Math.random() - 0.5) * 0.03; y = -1.95 + (Math.random() - 0.5) * 0.02;
+      const milestone = (Math.round(t * DEEP) % 7 === 0) && Math.abs(t * DEEP - Math.round(t * DEEP)) < 0.12;
+      s2 = milestone ? 1 : Math.random() * 0.25; sz = milestone ? 1.9 : 0.55 + Math.random() * 0.4;
+      col.set(milestone ? '#CFE0FF' : '#5C9BFF');
+    } else {
+      // Balise de chaque étape, sous l'endroit où se tient sa sculpture.
+      const k = K.sphere + (i - SN - RN); kind = 2; z = AT[k] + 7.2; s1 = k; col.set(tintOf(TRACK[k]));
+    }
+    aP.set([x, y, z, kind], i * 4); aS.set([s1, s2, sz, 0], i * 4); aC.set([col.r, col.g, col.b], i * 3);
+  }
+  const skyGeo = new BufferGeometry();
+  skyGeo.setAttribute('position', new BufferAttribute(new Float32Array(TN * 3), 3));
+  skyGeo.setAttribute('aP', new BufferAttribute(aP, 4)); skyGeo.setAttribute('aS', new BufferAttribute(aS, 4)); skyGeo.setAttribute('aC', new BufferAttribute(aC, 3));
+  const skyU = { uTravel: { value: 0 }, uDrift: { value: 0 }, uWarp: uniforms.uWarp, uPixel: uniforms.uPixel, uTime: uniforms.uTime, uFade: { value: 1 }, uAspect: uniforms.uAspect, uEnd: { value: AT[K.end] }, uTint: { value: new Color('#2F80FF') } };
+  const sky = new Points(skyGeo, new ShaderMaterial({ vertexShader: skyVertex, fragmentShader: skyFragment, uniforms: skyU, transparent: true, depthWrite: false, blending: AdditiveBlending }));
+  sky.frustumCulled = false; sky.renderOrder = -2; scene.add(sky);
+
+  // Portes : une entre chaque étape où l'on voyage, tirées d'une petite réserve de quatre anneaux.
+  const GATES = [];
+  for (let i = K.sphere; i < K.end; i++) if (legOf(i)[1]) GATES.push({ step: i, at: AT[i] + legOf(i)[0] * 0.88, tint: new Color(tintOf(TRACK[i + 1])), r: i === K.end - 1 ? 4.2 : 3.5, spin: (i * 1.7) % TAU });
+  const gatePool = [0, 1, 2, 3].map(() => {
+    const m = new ShaderMaterial({ vertexShader: quadVertex, fragmentShader: gateFragment, transparent: true, depthWrite: false, blending: AdditiveBlending,
+      uniforms: { uTint: { value: new Color() }, uA: { value: 0 }, uTime: uniforms.uTime, uR: { value: 3.5 }, uSpin: { value: 0 } } });
+    const g = new Mesh(new PlaneGeometry(1, 1), m); g.renderOrder = -1; g.visible = false; scene.add(g); return g;
+  });
+  // Piste d'arrivée, à plat sous la dernière étape.
+  const padMat = new ShaderMaterial({ vertexShader: quadVertex, fragmentShader: padFragment, transparent: true, depthWrite: false, blending: AdditiveBlending,
+    uniforms: { uTint: { value: new Color('#5C9BFF') }, uA: { value: 0 }, uTime: uniforms.uTime, uLand: { value: 0 } } });
+  const pad = new Mesh(new PlaneGeometry(8, 8), padMat); pad.rotation.x = -Math.PI / 2; pad.renderOrder = -1; pad.visible = false; scene.add(pad);
+  const PAD_AT = AT[K.end] + 7.2;
+
   // ---------- Mise en place selon la taille de l'écran ----------
   const view = { hw: 3.6, hh: 2.27, mobile };
   const poses = {};
   const resize = () => {
     const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
-    view.hh = Math.tan((35 * Math.PI) / 360) * 7.2; view.hw = view.hh * camera.aspect; view.mobile = w <= 760;
-    TRACK.forEach((key) => { poses[key] = STOPS[key].pose(view); });
+    view.hh = HALF * 7.2; view.hw = view.hh * camera.aspect; view.mobile = w <= 760; view.W = w; view.H = h; view.aspect = camera.aspect;
+    uniforms.uAspect.value = camera.aspect;
+    placeAll();
   };
+  function placeAll() { TRACK.forEach((key) => { view.cur = key; poses[key] = STOPS[key].pose(view); }); }
   resize();
   window.addEventListener('resize', resize);
 
@@ -690,33 +842,65 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
 
   // ---------- Boucle ----------
   let running = true, raf = 0, last = performance.now(), time = 0, kT = 0, kS = 0, vel = 0, dim = 1;
+  let travel = 0, lastTravel = 0, warp = 0, drift = 0, calm = false, land = 0, landed = false, prevK = 0;
   const tint = new Color(), cA = new Color(), cB = new Color();
   const apply = (k) => {
     const i = Math.min(TRACK.length - 2, Math.max(0, Math.floor(k))), f = Math.min(1, Math.max(0, k - i));
     if (i !== pair) setPair(i);
     const A = STOPS[TRACK[i]], B = STOPS[TRACK[i + 1]], pa = poses[TRACK[i]], pb = poses[TRACK[i + 1]], e = f * f * (3 - 2 * f), mid = Math.sin(e * Math.PI);
     uniforms.uMix.value = f;
-    const z = lerp(pa[2], pb[2], e) + mid * 0.9;
+    // Le voyage : distance parcourue sur la route, et traversée de la forme si ce passage en est une.
+    const leg = legOf(i), flight = reduced || calm ? 0 : leg[1];
+    travel = AT[i] + leg[0] * e;
+    uniforms.uFlight.value = flight;
+    // La caméra plonge un peu, s'incline dans le virage et ouvre son champ pendant la traversée.
+    const swing = flight * mid;
+    camera.position.z = 7.2 - swing * 0.55;
+    camera.lookAt(0, 0, 0);
+    camera.rotateZ(swing * (0.075 * (i % 2 ? 1 : -1) - bendSlope(travel + 18) * 0.45));
+    const fov = 35 + swing * 11 + warp * 4;
+    if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    const z = lerp(pa[2], pb[2], e) + mid * 0.9 * (1 - flight);
     rig.position.set(lerp(pa[0], pb[0], e), lerp(pa[1], pb[1], e), z);
     rig.rotation.set(lerp(pa[3], pb[3], e) + ndc.y * -0.1, lerp(pa[4], pb[4], e) + Math.sin(time * 0.32) * lerp(A.sway, B.sway, e) + ndc.x * 0.16, lerp(pa[5], pb[5], e));
     const s = lerp(pa[6], pb[6], e); rig.scale.setScalar(s);
     uniforms.uFade.value = lerp(A.fade, B.fade, e) * dim;
     uniforms.uFocus.value = camera.position.z - z;
     halo.position.set(rig.position.x, rig.position.y, z - 0.7); halo.scale.setScalar(s * (1 + Math.sin(time * 0.6) * 0.04));
-    haloMat.uniforms.uFade.value = lerp(A.halo, B.halo, e) * dim * (1 - mid * 0.5);
+    haloMat.uniforms.uFade.value = (lerp(A.halo, B.halo, e) * (1 - mid * (0.5 + flight * 0.45)) + land * 0.6) * dim;
     cA.set(A.col[0]); cB.set(B.col[0]); haloMat.uniforms.uTint.value.copy(tint.copy(cA).lerp(cB, e));
-    eMat.uniforms.uFade.value = 0.35 + uniforms.uFade.value * 0.65;
+    eMat.uniforms.uFade.value = (0.35 + uniforms.uFade.value * 0.65) * (1 - warp * 0.7);
+    // Le décor suit la distance parcourue.
+    skyU.uTravel.value = travel; skyU.uDrift.value = drift; skyU.uFade.value = dim * (0.75 + 0.25 * lerp(A.fade, B.fade, e));
+    cA.set(tintOf(TRACK[i])); cB.set(tintOf(TRACK[i + 1])); skyU.uTint.value.copy(cA).lerp(cB, e);
+    let g = 0;
+    for (const G of GATES) {
+      const dz = G.at - travel;
+      if (dz < 0.05 || dz > DEEP || g >= gatePool.length) continue;
+      const m = gatePool[g++], lit = G.step === i ? Math.min(1, f / 0.25) : 0;
+      m.visible = true; m.position.set(bend(G.at) - bend(travel), 0, 7.2 - dz); m.scale.setScalar((G.r + 0.7) * 2);
+      m.material.uniforms.uTint.value.copy(G.tint); m.material.uniforms.uR.value = G.r; m.material.uniforms.uSpin.value = G.spin;
+      // Au repos, la porte suivante n'est qu'un murmure ; elle s'allume quand on part, et le couloir apparaît pendant la traversée.
+      m.material.uniforms.uA.value = Math.min(1, (g === 1 ? 0.035 : 0) + lit * (0.22 + 0.78 * (1 - smoothstep(4, 13, dz))) + 0.3 * swing) * (1 - smoothstep(DEEP * 0.45, DEEP, dz)) * smoothstep(0.3, 2.6, dz) * dim * (calm ? 0.4 : 1);
+    }
+    for (; g < gatePool.length; g++) gatePool[g].visible = false;
+    const pz = PAD_AT - travel;
+    pad.visible = pz > 1 && pz < DEEP;
+    if (pad.visible) { pad.position.set(bend(PAD_AT) - bend(travel), -2.05, 7.2 - pz); padMat.uniforms.uA.value = (1 - smoothstep(DEEP * 0.4, DEEP, pz)) * (0.3 + 0.3 * (1 - smoothstep(7.4, 20, pz))) * dim; padMat.uniforms.uLand.value = land; }
   };
+  const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
   // Mesure de la fluidité : si l'appareil peine, on allège tout seul.
   let level = 0, acc = 0, frames = 0, warm = 0;
   const lighten = () => {
     level++;
     if (level === 1) { pixel = Math.min(pixel, 1); renderer.setPixelRatio(pixel); uniforms.uPixel.value = pixel; resize(); geo.setDrawRange(0, Math.floor(N * 0.7)); }
-    else if (level === 2) { geo.setDrawRange(0, Math.floor(N * 0.42)); uniforms.uSize.value *= 1.25; }
+    else if (level === 2) { geo.setDrawRange(0, Math.floor(N * 0.42)); uniforms.uSize.value *= 1.25; thinSky(0.45); }
     onQuality?.(level);
   };
 
+  // Moins d'étoiles quand l'appareil peine (le fil de route et les balises restent entiers).
+  const thinSky = (keep) => { const n = Math.floor(SN * keep); aP.copyWithin(n * 4, SN * 4, TN * 4); aS.copyWithin(n * 4, SN * 4, TN * 4); aC.copyWithin(n * 3, SN * 3, TN * 3); skyGeo.attributes.aP.needsUpdate = skyGeo.attributes.aS.needsUpdate = skyGeo.attributes.aC.needsUpdate = true; skyGeo.setDrawRange(0, n + RN + BN); };
   const frame = (now) => {
     raf = requestAnimationFrame(frame);
     const raw = (now - last) / 1000, dt = Math.min(raw, 0.05); last = now;
@@ -724,9 +908,18 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
     time += dt; uniforms.uTime.value = time;
     warm += dt;
     if (warm > 2.5 && raw < 0.25 && level < 3) { acc += raw; frames++; if (frames >= 80) { if (acc / frames > 1 / 27) lighten(); acc = 0; frames = 0; } }
-    kS += (kT - kS) * (1 - Math.exp(-dt * 6.5)); if (Math.abs(kT - kS) < 1e-4) kS = kT;
-    camera.position.x += (ndc.x * 0.5 - camera.position.x) * 0.04; camera.position.y += (ndc.y * 0.32 - camera.position.y) * 0.04; camera.lookAt(0, 0, 0);
+    // Pendant une traversée, la caméra prend son temps : le vol dure à peu près une seconde, même si l'on défile vite.
+    const rate = !calm && legOf(Math.min(TRACK.length - 2, Math.max(0, Math.floor(kS))))[1] ? 3.6 : 6.5;
+    kS += (kT - kS) * (1 - Math.exp(-dt * rate)); if (Math.abs(kT - kS) < 1e-4) kS = kT;
+    camera.position.x += (ndc.x * 0.5 - camera.position.x) * 0.04; camera.position.y += (ndc.y * 0.32 - camera.position.y) * 0.04;
+    if (!calm) drift += dt * 0.6;
+    // Arrivée au contact : une onde part de la sphère, la piste s'illumine.
+    if (!landed && kS >= K.end - 0.02 && prevK < K.end - 0.02 && kS > prevK && !calm) { landed = true; land = 1; uniforms.uPulsePos.value.copy(rig.position); pulse = 1; }
+    if (kS < K.end - 0.3) landed = false;
+    land = Math.max(0, land - dt * 0.45); prevK = kS;
     apply(kS);
+    const speed = Math.abs(travel - lastTravel) / Math.max(dt, 1e-3); lastTravel = travel;
+    warp += ((calm ? 0 : Math.min(1, speed / 26)) - warp) * (1 - Math.exp(-dt * 7)); uniforms.uWarp.value = warp;
     uniforms.uVel.value += (vel - uniforms.uVel.value) * 0.14; vel *= 0.9;
     pulse = Math.max(0, pulse - dt * 0.85); uniforms.uPulse.value = pulse;
     uniforms.uMouse.value.lerp(target, 0.12); strength *= 0.985;
@@ -742,6 +935,10 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
     set k(v) { kT = v; if (reduced) { kS = v; still(); } },
     jump(v) { kT = kS = v; if (reduced) still(); },
     set dim(v) { dim = v; },
+    // Zones libres mesurées dans la page, en pixels, par étape : { devis: { x, y, w, h, top }, … }.
+    set stages(m) { view.stages = m; placeAll(); if (reduced) still(); },
+    // Effets réduits : plus de traversée ni de traînées, le décor reste immobile.
+    set calm(v) { calm = !!v; if (reduced) still(); },
     set velocity(v) { vel = Math.max(vel, v); },
     get level() { return level; },
     play() { running = true; last = performance.now(); },
