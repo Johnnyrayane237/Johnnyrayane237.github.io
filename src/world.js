@@ -12,7 +12,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const VOICE_ORB = [-1.3, 0.05, 0];
 
 // Ordre du voyage : la valeur « k » avance le long de cette piste.
-export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'sms', 'voice', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
+export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'devis', 'sms', 'voice', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
 export const K = Object.fromEntries(TRACK.map((n, i) => [n, i]));
 
 // ---------- Hasard reproductible ----------
@@ -181,6 +181,70 @@ const SHAPES = {
     b.ring(b.n(0.03), [0, -1.5, 0], 1.7, 'xz', 0, 0.012, 4);
     return b.done();
   },
+  // Devis IA : la demande du client coule vers la feuille ; le devis s'écrit ligne par ligne, prix et total en couleur d'accent ;
+  // trois relances (J+3, J+8, J+15) partent du total en éventail, puis la case « Bon pour accord » se coche.
+  // prm : 0–0,97 mots de la demande (rangée l / 3 + position × 0,3) · 1–1,6 lignes du devis (ordre d'écriture) · 1,75 ligne de lecture · 2 total
+  // · 3–3,2 relances · 4 accord · 4,5 éclat de l'accord · 5 structure calme (5,1 : en-tête).
+  devis(N) {
+    const b = builder(N, 131), W = 1.5, H = 2.1, cy0 = 0.05, z = 0.04;
+    const outline = (n, w, h, r, cx, cy, zz, tone, prm, wj = 0.008) => { for (let k = 0; k < n; k++) { const q = rrPoint(b.rnd(), w, h, r); b.put(cx + q[0] + b.j(wj), cy + q[1] + b.j(wj), zz + b.j(wj), tone, prm); } };
+    const fill = (n, x0, x1, y0, y1, zz, tone, prm) => { for (let k = 0; k < n; k++) b.put(lerp(x0, x1, b.rnd()), lerp(y0, y1, b.rnd()), zz + b.j(0.006), tone, prm); };
+    // La feuille, et une seconde page en retrait pour la profondeur.
+    outline(b.n(0.075), W, H, 0.07, 0, cy0, 0, 0, 5);
+    outline(b.n(0.03), W, H, 0.07, 0.1, cy0 - 0.1, -0.16, 0, 5);
+    // En-tête : le logo, le titre, les références, puis le filet.
+    fill(b.n(0.014), -0.62, -0.44, 0.8, 0.96, z, 1, 5.1);
+    b.line(b.n(0.012), [-0.34, 0.92, z], [0.04, 0.92, z], 0, 0.022, 5.1, 5.1);
+    b.line(b.n(0.006), [-0.34, 0.83, z], [-0.1, 0.83, z], 0, 0.008, 5, 5);
+    b.line(b.n(0.006), [0.3, 0.92, z], [0.62, 0.92, z], 0, 0.008, 5, 5);
+    b.line(b.n(0.006), [0.38, 0.84, z], [0.62, 0.84, z], 0, 0.008, 5, 5);
+    b.line(b.n(0.012), [-0.62, 0.71, z], [0.62, 0.71, z], 0, 0.006, 5, 5);
+    // Les lignes du devis : désignation, quantité, puis le prix (accent), écrites l'une après l'autre.
+    [0.62, 0.48, 0.66, 0.4, 0.56, 0.5].forEach((len, r) => {
+      const y = 0.55 - r * 0.17, prm = 1 + r * 0.1;
+      b.line(b.n(0.02), [-0.62, y, z], [-0.62 + len, y, z], 0, 0.014, prm, prm);
+      b.line(b.n(0.004), [0.12, y, z], [0.2, y, z], 0, 0.012, prm, prm);
+      b.line(b.n(0.009), [0.34, y, z], [0.62, y, z], 1, 0.016, prm + 0.05, prm + 0.05);
+    });
+    // Le filet, puis le total encadré.
+    b.line(b.n(0.012), [0.06, -0.43, z], [0.62, -0.43, z], 0, 0.006, 1.6, 1.6);
+    b.line(b.n(0.01), [-0.62, -0.58, z], [-0.3, -0.58, z], 0, 0.02, 2, 2);
+    outline(b.n(0.024), 0.6, 0.2, 0.05, 0.34, -0.58, z, 1, 2, 0.006);
+    b.line(b.n(0.016), [0.16, -0.58, z], [0.54, -0.58, z], 1, 0.03, 2, 2);
+    // « Bon pour accord » : la case, la coche, puis la signature.
+    outline(b.n(0.012), 0.15, 0.15, 0.025, -0.52, -0.84, z, 1, 4, 0.005);
+    const tick = [[-0.58, -0.84], [-0.53, -0.89], [-0.44, -0.77]];
+    for (let k = 0, n = b.n(0.01); k < n; k++) { const t = b.rnd(), sg = t < 0.35 ? 0 : 1, f = sg ? (t - 0.35) / 0.65 : t / 0.35, A = tick[sg], B = tick[sg + 1]; b.put(lerp(A[0], B[0], f) + b.j(0.008), lerp(A[1], B[1], f) + b.j(0.008), z + 0.02, 1, 4); }
+    b.curve(b.n(0.016), (t) => [-0.32 + t * 0.6, -0.84 + Math.sin(t * 15) * 0.035 * (1 - t * 0.5) + t * 0.03, z], 1, 0.008, 4, 4);
+    // La demande du client : trois rangées de mots qui coulent vers la feuille ; les mots reconnus par l'IA sont en accent.
+    const bez = (t, l) => {
+      const u = 1 - t, P0 = [-1.85, 0.95 - l * 0.13, 0.5], P1 = [-1.35, 1.3 - l * 0.13, 0.32], P2 = [-0.82, 0.4 - l * 0.1, z];
+      return [0, 1, 2].map((c) => u * u * P0[c] + 2 * u * t * P1[c] + t * t * P2[c]);
+    };
+    for (let l = 0; l < 3; l++) {
+      const cnt = 13 + l * 3;
+      for (let k = 0, n = b.n(0.045); k < n; k++) {
+        const wi = Math.floor(b.rnd() * cnt), t = (wi + b.rnd() * (0.45 + ((wi * 7 + l) % 4) * 0.08)) / cnt, c = bez(t, l);
+        b.put(c[0] + b.j(0.01), c[1] + b.j(0.01), c[2] + b.j(0.01), (wi * 5 + l) % 7 === 3 ? 1 : 0, l / 3 + t * 0.3);
+      }
+    }
+    // Les trois relances partent du total en éventail ; leurs trajectoires restent en pointillés.
+    const S0 = [0.66, -0.58, z - 0.06];
+    const fly = (k, e) => [S0[0] + 0.82 * e, S0[1] + (1.5 - k * 0.62) * Math.sin((e * Math.PI) / 2), S0[2] + 0.3 * e];
+    for (let k = 0; k < 3; k++) {
+      const prm = 3 + k * 0.1;
+      for (let q = 0, n = b.n(0.02); q < n; q++) { const r = rrPoint(b.rnd(), 0.36, 0.24, 0.03); b.put(S0[0] + r[0] + b.j(0.006), S0[1] + r[1] + b.j(0.006), S0[2] + b.j(0.006), 1, prm); }
+      b.line(b.n(0.007), [S0[0] - 0.17, S0[1] + 0.11, S0[2]], [S0[0], S0[1] - 0.02, S0[2]], 1, 0.008, prm, prm);
+      b.line(b.n(0.007), [S0[0] + 0.17, S0[1] + 0.11, S0[2]], [S0[0], S0[1] - 0.02, S0[2]], 1, 0.008, prm, prm);
+      for (let q = 0, n = b.n(0.012); q < n; q++) { const e = (Math.floor(b.rnd() * 22) + b.rnd() * 0.35) / 22, c = fly(k, 0.12 + e * 0.88); b.put(c[0] + b.j(0.008), c[1] + b.j(0.008), c[2] + b.j(0.008), 0.35, 5); }
+    }
+    // La ligne de lecture : elle descend la feuille pendant que l'IA rédige le devis.
+    b.line(b.n(0.02), [-0.7, 0, z + 0.03], [0.7, 0, z + 0.03], 1, 0.01, 1.75, 1.75);
+    // L'éclat de l'accord : un anneau qui part de la case cochée.
+    b.ring(b.n(0.016), [-0.52, -0.84, z + 0.02], 0.12, 'xy', 1, 0.008, 4.5);
+    b.ring(b.n(0.03), [0, -1.32, 0], 1.65, 'xz', 0, 0.012, 5);
+    return b.done();
+  },
   // Standardiste vocal : l'orbe de la voix respire et parle ; la parole ondule, se redresse en donnée,
   // et se pose dans l'agenda, où le créneau réservé s'allume.
   // prm : 0–1 flux qui voyage · 1–1,5 ondes sonores · 2 orbe · 3 créneau réservé · 4 structure calme.
@@ -334,6 +398,7 @@ const STOPS = {
   name: { shape: 'name', fx: 0, col: ['#DCE8FF', '#2F80FF'], fade: 0.95, halo: 0.2, sway: 0.05, pose: (v) => [0, v.mobile ? 0.25 : 0.05, 0, 0, 0, 0, v.hw * 0.9] },
   sphere: { shape: 'sphere', fx: 1, col: ['#2F80FF', '#EAF1FF'], fade: 1, halo: 1, sway: 0, pose: (v) => [0, 0, 0, 0, 0, 0.18, v.mobile ? 0.77 : 1] },
   terrain: { shape: 'terrain', fx: 2, col: ['#2F80FF', '#EAF1FF'], fade: 0.42, halo: 0, sway: 0, pose: () => [0, 0, 0, 0.55, 0, 0.18, 1] },
+  devis: { shape: 'devis', fx: 13, col: ['#2F80FF', '#D2F65A'], fade: 1, halo: 0.35, sway: 0.2, pose: (v) => side(v, 0.1, -0.5, 0.95) },
   sms: { shape: 'sms', fx: 12, col: ['#2F80FF', '#FF7AD9'], fade: 1, halo: 0.35, sway: 0.2, pose: (v) => side(v, 0.06, -0.36, 0.92) },
   voice: { shape: 'voice', fx: 11, col: ['#2F80FF', '#C49BFF'], fade: 1, halo: 0.35, sway: 0.18, pose: (v) => side(v, 0.06, -0.42, 0.95) },
   wave: { shape: 'wave', fx: 3, col: ['#2F80FF', '#7CF5D0'], fade: 1, halo: 0.35, sway: 0.22, pose: (v) => side(v, 0.12, -0.5, 0.92) },
@@ -415,6 +480,56 @@ vec3 life(vec3 p, vec2 meta, float id, out float glow){
   } else if (id < 9.5) {
     p.xy = rot(sin(uTime * .2) * .12) * p.xy;
     if (tone > .5) glow = .3 + .35 * sin(uTime * 2. + aRand.x * 30.); else glow = pow(fract(prm - uTime * .35), 6.) * 1.6;
+  } else if (id > 12.5) {
+    // Devis IA (cycle d'environ 11 s) : la demande coule vers la feuille, le devis s'écrit ligne par ligne, le total s'allume,
+    // les trois relances partent en éventail, puis la case « Bon pour accord » se coche.
+    float s = fract(uTime * .09), fin = 1. - smoothstep(.95, 1., s);
+    float scanY = max(.55 - 2.833 * (s - .03), -.6), scanOn = smoothstep(0., .03, s) * (1. - smoothstep(.4, .45, s));
+    if (prm > 4.9) glow = (prm > 5.05 ? .3 : .08) + .08 * sin(uTime * .8 + p.y * 3.) + exp(-pow((p.y - scanY) * 9., 2.)) * scanOn * step(abs(p.x), .8) * .9;
+    else if (prm > 4.4) {
+      vec2 C = vec2(-.52, -.84);
+      float d = clamp((s - .86) / .09, 0., 1.), act = step(.86, s) * (1. - step(.999, d));
+      p.xy = C + (p.xy - C) * (act > .5 ? .5 + d * 3.2 : 0.);
+      p.z -= (1. - act) * .4;
+      glow = act > .5 ? (1. - d) * 1.8 - .3 : -5.;
+    }
+    else if (prm > 3.9) {
+      float on = smoothstep(.84, .88, s) * fin;
+      p.z += (1. - on) * .2;
+      glow = mix(-.62, .6 + .35 * sin(uTime * 4.), on) + smoothstep(.84, .86, s) * (1. - smoothstep(.86, .93, s)) * 1.2;
+    }
+    else if (prm > 2.9) {
+      float k = floor((prm - 3.) * 10. + .5), st = .48 + k * .1, d = clamp((s - st) / .3, 0., 1.), e = d * d * (3. - 2. * d);
+      float launched = step(st, s) * step(.5, fin);
+      vec3 S0 = vec3(.66, -.58, -.02);
+      p = S0 + (p - S0) * launched * smoothstep(0., .035, s - st);
+      p += vec3(.82 * e, (1.5 - k * .62) * sin(e * 1.5708) + sin(e * 9.42 + k) * .035 * e, .3 * e);
+      p.z -= (1. - launched) * .5;
+      glow = launched > .5 ? mix(1.1 + .3 * sin(uTime * 5. + k * 2.), .15, smoothstep(.6, 1., d)) : -5.;
+    }
+    else if (prm > 1.9) {
+      float on = smoothstep(.4, .43, s) * fin;
+      glow = mix(-.62, .5 + .3 * sin(uTime * 3.), on) + smoothstep(.4, .42, s) * (1. - smoothstep(.42, .52, s)) * 1.4;
+    }
+    else if (prm > 1.65) {
+      p.y += scanY;
+      p.x *= smoothstep(0., .6, scanOn);
+      p.z -= (1. - scanOn) * .4;
+      glow = scanOn > .01 ? mix(-.7, 1.1 + .3 * sin(uTime * 9. + p.x * 6.), scanOn) : -5.;
+    }
+    else if (prm > .999) {
+      float age = s - .03 - (prm - 1.) * .6, on = smoothstep(0., .02, age) * fin;
+      p.x -= (1. - on) * .12;
+      glow = mix(-.62, tone > .5 ? .5 : .2, on) + smoothstep(0., .01, age) * (1. - smoothstep(.01, .09, age)) * 1.4;
+    }
+    else {
+      // Les mots glissent le long de leur rangée jusqu'à la feuille, où ils s'éteignent.
+      float l = floor(prm * 3. + .001), t = (prm - l / 3.) / .3, tt = fract(t + uTime * .06), u = 1. - t, v = 1. - tt;
+      vec3 P0 = vec3(-1.85, .95 - l * .13, .5), P1 = vec3(-1.35, 1.3 - l * .13, .32), P2 = vec3(-.82, .4 - l * .1, .04);
+      p += (v * v * P0 + 2. * v * tt * P1 + tt * tt * P2) - (u * u * P0 + 2. * u * t * P1 + t * t * P2);
+      float env = smoothstep(0., .12, tt) * (1. - smoothstep(.82, 1., tt));
+      glow = mix(-.7, (tone > .5 ? .9 : .4) * (.45 + .55 * (1. - smoothstep(.35, .5, s))), env);
+    }
   } else if (id > 11.5) {
     // Accueil SMS : le voyant clignote, les ondes de l'appel manqué s'élargissent, la conversation s'écrit bulle après bulle,
     // les trois créneaux tournent sur une orbite inclinée, et celui choisi par le client bat.
@@ -449,6 +564,8 @@ void main(){
   float gA; float gB;
   vec3 a = life(position, aMetaA, uFxA, gA);
   vec3 b = life(aTo, aMetaB, uFxB, gB);
+  // Une forme peut cacher un point en renvoyant un éclat < −2 : il devient transparent, sans fantôme.
+  float hA = step(-2., gA), hB = step(-2., gB); gA = max(gA, -.7); gB = max(gB, -.7);
   // Chaque point part à son heure : la forme se défait puis se reforme par vagues.
   float m = clamp(uMix * 1.65 - aRand.x * .65, 0., 1.);
   m = m * m * (3. - 2. * m);
@@ -471,7 +588,7 @@ void main(){
   vStretch = 1. + uVel * (2.2 + aRand.x * 2.6);
   float size = uSize * (.55 + aRand.z * .9) * (1. + max(glow, 0.) * .45) * mix(1., 3.4, big) * (1. + coc * .18) * (1. + mid * .5);
   gl_PointSize = size * uPixel / -mv.z * vStretch;
-  vAlpha = (.5 + .5 * glow) * mix(1., .16, big) * mix(1., .3, dust) / (1. + coc * .5);
+  vAlpha = (.5 + .5 * glow) * mix(1., .16, big) * mix(1., .3, dust) / (1. + coc * .5) * mix(hA, hB, m);
   vToneA = aMetaA.x; vToneB = aMetaB.x; vM = m;
 }`;
 

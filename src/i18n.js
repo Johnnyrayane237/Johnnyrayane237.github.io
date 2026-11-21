@@ -5,6 +5,7 @@ const DEMO = 'https://johnnyrayane237.github.io/jobhunter-poste-de-pilotage/';
 const AIG = 'https://johnnyrayane237.github.io/aiguilleur/';
 const VOIX = 'https://github.com/Johnnyrayane237/standardiste-vocal-ia';
 const SMS = 'https://github.com/Johnnyrayane237/accueil-client-sms-ia';
+const DEVIS = 'https://github.com/Johnnyrayane237/devis-ia-relance-automatique';
 
 export const content = {
   fr: {
@@ -57,10 +58,10 @@ export const content = {
       title: 'Johanne Pamegne, <em>alternant Automatisation &amp; IA.</em>',
       lede: "Je construis des systèmes qui font le travail répétitif à la place des équipes : agents IA, workflows n8n, serveurs. Chaque chiffre ci-dessous est mesuré sur un vrai projet.",
       proofs: [
+        ['< 1 min', "de la demande au devis chiffré, sans qu'aucun prix soit inventé", 'Devis IA et relance automatique · n8n + Claude', 'devis'],
         ['69', 'tests automatiques, 48 blocs n8n générés par du code', 'Accueil client IA par SMS · n8n + Twilio', 'accueil-sms'],
         ['60', 'blocs n8n générés par du code, 65 tests', 'Standardiste vocal IA · Retell + n8n', 'standardiste'],
         ['0,07 $', 'coût mesuré par candidature', 'JobHunter · multi-agent + Supabase', 'jobhunter'],
-        ['102', 'tests automatisés, système construit en 3 jours', 'Agence IA de doublage vidéo', 'doublage'],
       ],
       facts: [
         ['Je cherche', 'Alternance ou stage alterné en automatisation et IA, ou en développement web'],
@@ -73,12 +74,22 @@ export const content = {
       cv: 'Télécharger le CV', mail: 'Écrire un e-mail', more: 'Voir tout le site', see: 'Voir le projet',
     },
     stats: [
-      { n: 7, suffix: '', label: 'systèmes n8n construits en 2026' },
+      { n: 8, suffix: '', label: 'systèmes n8n construits en 2026' },
       { n: 32, suffix: '', label: "workflows dans l'agence de doublage" },
       { n: 102, suffix: '', label: 'tests automatisés sur un seul projet' },
       { n: 13, suffix: '/13', label: 'candidatures correctement vérifiées par JobHunter' },
     ],
     projects: [
+      {
+        id: 'devis', short: 'Devis IA', color: '#D2F65A', year: '2026', img: 'media/devis.webp',
+        title: 'Devis IA et relance automatique', sub: 'Chaque demande chiffrée, chaque devis relancé',
+        tags: ['n8n', 'API Claude', 'Devis', 'Relances'],
+        summary: "Une demande écrite en quelques lignes devient un devis chiffré en moins d'une minute, à partir de la grille de prix de l'entreprise : l'IA ne fixe jamais un prix. Le responsable valide d'un geste, le client accepte en ligne, et sans réponse des relances personnalisées partent toutes seules. Démo réalisée pour une entreprise de rénovation fictive, réglable pour tout métier qui vit de devis.",
+        metrics: [['< 1 min', 'de la demande au brouillon de devis chiffré'], ['0', "prix fixé par l'IA : chaque montant vient de la grille"], ['3', 'relances sur mesure, arrêtées dès que le client répond'], ['41', 'tests automatiques au vert, 44 blocs n8n']],
+        built: ["Claude repère les ouvrages et les quantités ; le code calcule chaque montant, la TVA, l'acompte et la marge", "Contrôles avant envoi : postes oubliés, doublons, quantités anormales ; un poste hors grille bloque l'envoi", 'Alerte sur le téléphone du responsable : rien ne part sans sa validation', "Devis en ligne : le client accepte, pose une question ou décline ; l'IA lit sa réponse et conseille le responsable", 'Testé de bout en bout avec la vraie API Claude, construit en pilotant Claude Code'],
+        stack: ['n8n', 'API Claude', 'ntfy', 'Node.js', 'Coolify'],
+        links: [['Voir le code sur GitHub', DEVIS]],
+      },
       {
         id: 'accueil-sms', short: 'Accueil SMS', color: '#FF7AD9', year: '2026', img: 'media/accueil-sms.webp',
         title: 'Accueil client IA par SMS', sub: 'Plus aucun client perdu, plus aucun rendez-vous oublié',
@@ -252,10 +263,10 @@ export const content = {
       title: 'Johanne Pamegne, <em>Automation &amp; AI apprentice.</em>',
       lede: 'I build systems that take repetitive work off people’s plates: AI agents, n8n workflows, servers. Every figure below was measured on a real project.',
       proofs: [
+        ['< 1 min', 'from request to priced quote, with no price ever invented', 'AI quotes and follow-up · n8n + Claude', 'devis'],
         ['69', 'automated tests, 48 n8n nodes generated from code', 'AI text-message front desk · n8n + Twilio', 'accueil-sms'],
         ['60', 'n8n nodes generated from code, 65 tests', 'AI voice receptionist · Retell + n8n', 'standardiste'],
         ['$0.07', 'measured cost per application', 'JobHunter · multi-agent + Supabase', 'jobhunter'],
-        ['102', 'automated tests, system built in 3 days', 'AI video dubbing agency', 'doublage'],
       ],
       facts: [
         ['Looking for', 'A work-study position (alternance) in automation and AI, or in web development'],
@@ -268,12 +279,22 @@ export const content = {
       cv: 'Download my CV', mail: 'Send an email', more: 'See the whole site', see: 'See the project',
     },
     stats: [
-      { n: 7, suffix: '', label: 'n8n systems built in 2026' },
+      { n: 8, suffix: '', label: 'n8n systems built in 2026' },
       { n: 32, suffix: '', label: 'workflows in the dubbing agency' },
       { n: 102, suffix: '', label: 'automated tests on a single project' },
       { n: 13, suffix: '/13', label: 'applications reviewed correctly by JobHunter' },
     ],
     projects: [
+      {
+        id: 'devis', short: 'AI quotes', color: '#D2F65A', year: '2026', img: 'media/devis.webp',
+        title: 'AI quotes and automatic follow-up', sub: 'Every request priced, every quote followed up',
+        tags: ['n8n', 'Claude API', 'Quotes', 'Follow-ups'],
+        summary: 'A request written in a few lines becomes a priced quote in under a minute, built from the company’s own price list: the AI never sets a price. The person in charge approves it in one tap, the customer accepts online, and if there is no answer, personalised follow-ups go out on their own. Demo built for a fictitious renovation company, configurable for any business that runs on quotes.',
+        metrics: [['< 1 min', 'from request to priced draft quote'], ['0', 'prices set by the AI: every amount comes from the price list'], ['3', 'tailored follow-ups, stopped as soon as the customer replies'], ['41', 'automated tests passing, 44 n8n nodes']],
+        built: ['Claude spots the work items and quantities; code calculates every amount, VAT, deposit and margin', 'Checks before sending: forgotten items, duplicates, unusual quantities; an item missing from the price list blocks sending', 'Alert on the phone of the person in charge: nothing goes out without their approval', 'Online quote: the customer accepts, asks a question or declines; the AI reads the reply and advises the person in charge', 'Tested end to end with the real Claude API, built by steering Claude Code'],
+        stack: ['n8n', 'Claude API', 'ntfy', 'Node.js', 'Coolify'],
+        links: [['See the code on GitHub', DEVIS]],
+      },
       {
         id: 'accueil-sms', short: 'SMS desk', color: '#FF7AD9', year: '2026', img: 'media/accueil-sms.webp',
         title: 'AI text-message front desk', sub: 'No more lost customers, no more forgotten appointments',

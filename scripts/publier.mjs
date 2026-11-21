@@ -19,6 +19,8 @@ if (!existsSync('dist/.git')) {
   run(`git remote add origin ${REPO}`, 'dist');
 }
 run('git config user.name "Johanne Pamegne"', 'dist');
+// Adresse anonyme de GitHub : l'adresse personnelle n'apparaît jamais dans l'historique public.
+run('git config user.email "175623267+Johnnyrayane237@users.noreply.github.com"', 'dist');
 run('git add -A', 'dist');
 const date = new Date().toISOString().slice(0, 16).replace('T', ' ');
 try {
