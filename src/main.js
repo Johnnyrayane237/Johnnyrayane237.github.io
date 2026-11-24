@@ -4,6 +4,7 @@ import '@fontsource/instrument-serif/400-italic.css';
 import '@fontsource-variable/jetbrains-mono';
 import './styles.css';
 import './machine.css';
+import './horizon.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
@@ -11,10 +12,12 @@ import { content, contact } from './i18n.js';
 import { initWorld, K, TRACK } from './world.js';
 import { initExtras, scramble } from './extras.js';
 import { renderFeatures } from './hood-render.js';
-import { initPipeline3D } from './pipeline-3d.js';
+import { STATIONS, shownStatus } from './stations.js';
+import { initChrono } from './chrono.js';
+import { initAgentRoom } from './agents.js';
 
 gsap.registerPlugin(ScrollTrigger);
-// Les sections épinglées (pipeline, vidéos) allongent la page. Pour que chaque animation située
+// Les sections épinglées (voyage, salle des agents) allongent la page. Pour que chaque animation située
 // plus bas se déclenche au bon endroit, les déclencheurs sont recalculés dans l'ordre de la page.
 ScrollTrigger.addEventListener('refreshInit', () => ScrollTrigger.sort((a, b) => {
   const A = a.trigger, B = b.trigger;
@@ -26,8 +29,9 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+const mobile = window.matchMedia('(max-width: 760px)').matches;
 const params = new URLSearchParams(location.search);
-const skipIntro = reduced || params.has('og');
+const skipIntro = reduced || params.has('og') || params.has('capture');
 let menuOpen = false, caseOpen = false;
 
 // ---------- Langue ----------
@@ -48,32 +52,48 @@ $('.lang__off').textContent = lang === 'fr' ? 'EN' : 'FR';
 // ---------- Contenu ----------
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pad = (n) => String(n).padStart(2, '0');
+const HZ = L.horizon, NS = STATIONS.length;
+const projOf = (s) => L.projects.find((p) => p.id === s.project);
 
-$('#stats').innerHTML = L.stats.map((s) => `<div class="stat"><div class="stat__n"><span data-count="${s.n}">0</span><small>${esc(s.suffix)}</small></div><p>${esc(s.label)}</p></div>`).join('');
+// Prologue : la liste des tâches du jour.
+$('#loaderList').innerHTML = L.loader.map((t) => `<li><i class="loader__box"></i><span class="loader__t">${esc(t)}</span><em class="mono">${esc(T['loader.done'])}</em></li>`).join('');
+$('#loaderCount').textContent = `0/${L.loader.length}`;
 
-// Projets : un écran par projet, la sculpture 3D change derrière le texte.
-const NP = L.projects.length;
-$('#workStage').innerHTML = L.projects.map((p, i) => `<article class="slide" data-project="${p.id}" style="--c:${p.color}" aria-hidden="true">
-  <p class="slide__n mono"><b>${pad(i + 1)}</b> / ${pad(NP)} — ${esc(p.year)}</p>
-  <h3 class="slide__title">${esc(p.title)}</h3>
-  <p class="slide__sub">${esc(p.sub)}</p>
-  <p class="slide__summary">${esc(p.summary)}</p>
-  <div class="slide__metrics">${p.metrics.slice(0, 3).map(([b, t]) => `<div><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('')}</div>
-  <div class="slide__foot"><button class="btn btn--primary slide__open" type="button" data-open="${p.id}" data-magnetic><span class="btn__fill"></span><span class="btn__label">${esc(T['work.open'])}</span><span class="btn__arrow">→</span></button>
-    <span class="slide__tags">${p.tags.map((t) => `<i class="tag">${esc(t)}</i>`).join('')}</span></div></article>`).join('');
-$('#workOdo').innerHTML = L.projects.map((_, i) => `<span>${pad(i + 1)}</span>`).join('');
-$('#workRail').innerHTML = L.projects.map((p, i) => `<button type="button" data-go="${i}"><i>${pad(i + 1)}</i><span>${esc(p.short)}</span></button>`).join('') + '<span class="work__bar"><i id="workBar"></i></span>';
+// Les trois métiers
+$('#trades').innerHTML = L.trades.map(([t, d, href], i) => `<a class="trade" href="${href}"><span class="trade__n mono">${pad(i + 1)}</span><h3>${esc(t)}</h3><p>${esc(d)}</p><span class="trade__go" aria-hidden="true">→</span></a>`).join('');
 
-const HUMAN = L.pipeline.human; // l'étape où une personne valide — ici, le visiteur
-$('#pipelineGraph').innerHTML = L.pipeline.nodes.map(([t, d], i) => `<div class="node${i === HUMAN.index ? ' node--human' : ''}"><div class="node__box"><div class="node__i mono"><span>${pad(i + 1)}</span><b></b></div><div class="node__t">${esc(t)}</div><div class="node__d">${esc(d)}</div>${i === HUMAN.index ? `<button class="node__ok mono" type="button">${esc(HUMAN.btn)}</button>` : ''}</div><i class="node__link"></i></div>`).join('');
-$('#pipelineLog').innerHTML = L.pipeline.log.map((l) => `<p>${esc(l)}</p>`).join('') + `<p class="is-human">${esc(HUMAN.log)}</p>`;
+// Les stations du voyage : chacune a sa phase « aujourd'hui » (la tâche à la main) et sa phase « futur » (le projet).
+$('#hzStage').innerHTML = STATIONS.map((s, i) => {
+  const p = projOf(s), t = HZ.stations[s.id], ss = shownStatus(s);
+  return `<article class="hz-slide" data-i="${i}" style="--c:${s.color}" aria-hidden="true">
+  <p class="hz-slide__n mono"><b>${pad(i + 1)}</b> / ${pad(NS)} — ${esc(HZ.level)} ${s.level}/6</p>
+  <div class="hz-ph hz-ph--today">
+    <p class="hz-ph__tag mono"><i></i>${esc(T['horizon.today'])}</p>
+    <h3 class="hz-ph__task">${esc(t.task)}</h3>
+    <p class="hz-ph__txt">${esc(t.today)}</p>
+  </div>
+  <div class="hz-ph hz-ph--future">
+    <p class="hz-ph__tag mono"><i></i>${esc(T['horizon.future'])} · <span class="badge badge--${ss}">${esc(HZ.status[ss])}</span></p>
+    <h3 class="hz-ph__title">${esc(p.title)}</h3>
+    <p class="hz-ph__txt">${esc(t.future)}</p>
+    <div class="slide__metrics">${p.metrics.slice(0, 3).map(([b, x]) => `<div><b>${esc(b)}</b><span>${esc(x)}</span></div>`).join('')}</div>
+    <div class="slide__foot"><button class="btn btn--primary slide__open" type="button" data-open="${p.id}" data-magnetic><span class="btn__fill"></span><span class="btn__label">${esc(T['horizon.open'])}</span><span class="btn__arrow">→</span></button></div>
+  </div></article>`;
+}).join('');
+$('#hzRail').innerHTML = STATIONS.map((s, i) => `<button type="button" data-go="${i}" style="--c:${s.color}"><i>${pad(i + 1)}</i><span>${esc(projOf(s).short)}</span></button>`).join('') + '<span class="work__bar"><i id="hzBar"></i></span>';
 
-$('#reel').innerHTML = L.motion.map((m, i) => `<button class="clip" type="button" style="aspect-ratio:${m.ratio}" data-video="${m.src}" data-cursor="view" aria-label="${esc(T['motion.play'])} — ${esc(m.title)}">
+// L'atelier : sites en ligne, films et pubs
+$('#atSites').innerHTML = L.atelier.sites.map((s) => `<a class="site" href="${s.url}" target="_blank" rel="noopener" data-cursor="view">
+  <span class="site__bar" aria-hidden="true"><i></i><i></i><i></i><span class="mono">${esc(s.url.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</span></span>
+  <span class="site__shot"><img src="${s.img}" alt="" loading="lazy" /></span>
+  <span class="site__cap"><b>${esc(s.title)}</b><span class="mono">${esc(s.meta)}</span><em class="mono">${esc(T['atelier.visit'])} ↗</em></span></a>`).join('');
+$('#reel').innerHTML = L.motion.map((m, i) => `<button class="clip${m.ratio === '9/16' ? ' clip--tall' : ''}" type="button" style="--ratio:${m.ratio}" data-video="${m.src}" data-cursor="view" aria-label="${esc(T['motion.play'])} — ${esc(m.title)}">
   <video muted loop playsinline preload="none" poster="${m.poster}" data-src="${m.src}"></video><span class="clip__n mono">${pad(i + 1)}</span>
   <span class="clip__cap"><strong>${esc(m.title)}</strong><span class="mono">${esc(m.meta)}</span></span></button>`).join('');
 
-$('#caps').innerHTML = L.caps.map(([t, items], i) => `<article class="cap"><span class="cap__n mono">${pad(i + 1)}</span><h3>${esc(t)}</h3><ul>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></article>`).join('');
 $('#path').innerHTML = L.path.map(([y, t, o, d]) => `<li class="step"><span class="step__y mono">${esc(y)}</span><div><h3>${esc(t)}</h3><p class="step__o">${esc(o)}</p></div><p class="step__d">${esc(d)}</p></li>`).join('');
+$('#tools').innerHTML = L.tools.map((t) => `<i class="tag">${esc(t)}</i>`).join('');
+$('#askInput').setAttribute('placeholder', T['contact.placeholder']);
 
 // ---------- Découpage du texte ----------
 function splitWords(el, cls = 'w') {
@@ -98,7 +118,7 @@ $$('[data-split="chars"]').forEach((el) => {
   const html = [...el.childNodes].map((n) => (n.nodeType === 3 ? [...n.textContent].map((c) => `<span class="char">${c}</span>`).join('') : `<span class="char">${n.outerHTML}</span>`)).join('');
   el.innerHTML = html;
 });
-$$('.title, .contact__title, .slide__title').forEach((el) => splitWords(el));
+$$('.title, .contact__title, .hz-ph__title, .hz-ph__task').forEach((el) => splitWords(el));
 splitWords($('#manifestoText'), 'mw');
 
 // ---------- Défilement fluide ----------
@@ -116,26 +136,38 @@ document.addEventListener('click', (e) => {
   e.preventDefault(); closeMenu(); closeCase(); closeQuick(); scrollToTarget(a.getAttribute('href'));
 });
 
+// ---------- Le tableau de bord du voyage (année d'horizon, autonomie, statut) ----------
+const chrono = reduced ? null : initChrono({ mount: $('#hzDash'), texts: HZ, reduced });
+let lastFrame = performance.now();
+const feedChrono = (st) => { const now = performance.now(); chrono?.update(st, Math.min(0.1, (now - lastFrame) / 1000)); lastFrame = now; };
+
 // ---------- Scène 3D ----------
 // Un seul monde : le nuage de particules prend la forme de chaque étape du site.
 let hero = null, introPlaying = false;
-try { hero = initWorld($('#gl'), { reduced, onQuality: (lvl) => { if (lvl >= 2) window.dispatchEvent(new CustomEvent('world:slow')); } }); } catch { $('#gl').remove(); }
+try {
+  hero = initWorld($('#gl'), { reduced, seed: params.has('capture') ? 7 : 0, onFrame: feedChrono,
+    onQuality: (lvl) => { if (lvl >= 2) window.dispatchEvent(new CustomEvent('world:slow')); } });
+} catch { $('#gl').remove(); }
 
 // ---------- Le voyage : chaque portion de page fait avancer le monde d'une étape ----------
 const segs = [];
-// Points d'arrivée de chaque étape (pour le repère du voyage).
 const stopST = {};
 const seg = (cfg, map) => { const st = ScrollTrigger.create(cfg); segs.push({ st, map }); return st; };
+// Sans 3D, le tableau de bord suit quand même le voyage, d'après la même position sur la route.
+const pseudo = (k) => { const i = Math.min(TRACK.length - 2, Math.max(0, Math.floor(k))), f = Math.min(1, k - i), a = TRACK[i], b = TRACK[i + 1];
+  const old = (x) => x.startsWith('auj_'); return { k, i, f, a, b, flight: old(a) || i < 2 ? 0 : 1, era: old(a) && old(b) ? 0 : old(a) ? f : old(b) ? 1 - f : 1, warp: 0, crossed: null }; };
 function syncWorld() {
-  if (!hero || introPlaying) return;
+  if (introPlaying) return;
   let k = K.sphere;
   segs.forEach(({ st, map }) => { k += map ? map(st.progress) : st.progress; });
-  hero.k = k;
+  if (hero) hero.k = k; else feedChrono(pseudo(k));
 }
-// Dans la scène des projets, la forme reste stable puis se transforme au milieu du passage.
-const hold = (p) => { const x = p * (NP - 1), i = Math.min(NP - 2, Math.floor(x)), f = Math.min(1, Math.max(0, (x - i - 0.22) / 0.56)); return i + f * f * (3 - 2 * f); };
+// Dans le voyage : la forme « aujourd'hui » reste un temps, bascule dans son futur, s'y pose, puis on saute à la station suivante.
+const sm = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+const hzMap = (p) => { const x = Math.min(NS - 1e-4, p * NS), i = Math.floor(x), q = x - i; let m = sm(0.2, 0.46, q); if (i < NS - 1) m += sm(0.76, 1, q); return 2 * i + m; };
+const hzAt = (p) => { const x = Math.min(NS - 1e-4, Math.max(0, p) * NS), i = Math.floor(x), q = x - i; return q > 0.88 && i < NS - 1 ? [i + 1, false] : [i, q >= 0.33]; };
 
-// ---------- Introduction ----------
+// ---------- Prologue et introduction ----------
 let seen = false;
 try { seen = sessionStorage.getItem('seen') === '1'; sessionStorage.setItem('seen', '1'); } catch { /* stockage indisponible */ }
 function reveal(at = 0) {
@@ -163,15 +195,17 @@ if (skipIntro || seen) {
   hero?.jump(K.sphere);
   if (!skipIntro) reveal(0.1);
 } else {
-  // Le nom et l'en-tête restent cachés tant que les particules n'ont pas écrit le nom.
+  // Le prologue : les tâches du jour s'inscrivent, puis chacune est confiée à un agent (cochée, barrée, en couleur).
   gsap.set('.hero__line .char', { yPercent: 120 });
   gsap.set('.hero__top > *, .hero__bottom > *, .header > *', { opacity: 0 });
-  const count = { v: 0 };
+  const items = $$('#loaderList li'), n = items.length, count = { v: 0 };
   gsap.timeline()
-    .to('.loader__log li', { opacity: 1, y: 0, duration: 0.3, stagger: 0.22, ease: 'power2.out' }, 0.05)
-    .to(count, { v: 100, duration: 1.4, ease: 'power2.inOut', onUpdate: () => { $('#loaderCount').textContent = String(Math.round(count.v)).padStart(3, '0'); } }, 0)
-    .to('#loaderBar', { scaleX: 1, duration: 1.4, ease: 'power2.inOut' }, 0)
-    .to('.loader__count, .loader__log, .loader__name', { yPercent: -40, opacity: 0, duration: 0.5, ease: 'power3.in', stagger: 0.04 }, '+=0.1')
+    .to(items, { opacity: 1, y: 0, duration: 0.3, stagger: 0.09, ease: 'power2.out' }, 0.05)
+    .to(count, { v: n, duration: n * 0.16, ease: 'none', onUpdate: () => {
+      const d = Math.floor(count.v); items.forEach((li, i) => li.classList.toggle('is-done', i < d)); $('#loaderCount').textContent = `${d}/${n}`;
+    } }, 0.5)
+    .to('#loaderBar', { scaleX: 1, duration: n * 0.16, ease: 'none' }, 0.5)
+    .to('.loader__todo, .loader__name', { yPercent: -30, opacity: 0, duration: 0.45, ease: 'power3.in', stagger: 0.04 }, '+=0.25')
     .add(intro, '-=0.1')
     .to('#loader', { clipPath: 'inset(0 0 100% 0)', duration: 0.9, ease: 'expo.inOut' }, '-=0.1')
     .set('#loader', { display: 'none' });
@@ -179,11 +213,9 @@ if (skipIntro || seen) {
 
 // ---------- Animations au défilement ----------
 if (!reduced) {
-  // Accueil → manifeste → premier projet (la suite du voyage est ajoutée plus bas, dans l'ordre de la page)
-  if (hero) {
-    stopST.manifeste = seg({ trigger: '.hero', start: 'top top', end: 'bottom top' });
-    seg({ trigger: '#travaux', start: 'top 75%', endTrigger: '#workPin', end: 'top top' });
-  }
+  seg({ trigger: '.hero', start: 'top top', end: 'bottom top' });
+  stopST.manifeste = segs[0].st;
+  seg({ trigger: '#horizon', start: 'top 75%', endTrigger: '#hzPin', end: 'top top' });
   gsap.to('.hero__title', { yPercent: -18, scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
   gsap.to('.hero__line--right', { xPercent: -6, scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
 
@@ -196,191 +228,126 @@ if (!reduced) {
   gsap.ticker.add(syncWorld);
   gsap.ticker.add(() => { mx -= speed * 0.9; speed += (1 - speed) * 0.06; const half = track.scrollWidth / 2; if (mx <= -half) mx += half; if (mx > 0) mx -= half; track.style.transform = `translate3d(${mx}px,0,0)`; });
 
-  // Manifeste : les mots s'allument
   gsap.to('#manifestoText .mw', { opacity: 1, stagger: 0.06, ease: 'none', scrollTrigger: { trigger: '#manifestoText', start: 'top 82%', end: 'bottom 45%', scrub: 0.6 } });
-
-  // Titres : mots qui montent derrière un masque
   $$('.title, .contact__title').forEach((el) => {
-    if (el.closest('.pipeline')) return;
+    if (el.closest('.ag')) return;
     gsap.from($$('.w > span', el), { yPercent: 115, rotate: 4, duration: 1.25, ease: 'expo.out', stagger: 0.06, scrollTrigger: { trigger: el, start: 'top 88%' } });
   });
-
-  // Compteurs
-  $$('[data-count]').forEach((el) => {
-    const o = { v: 0 }, end = +el.dataset.count;
-    gsap.to(o, { v: end, duration: 1.8, ease: 'power3.out', onUpdate: () => { el.textContent = Math.round(o.v); }, scrollTrigger: { trigger: el, start: 'top 90%' } });
-  });
-  gsap.from('.stat', { y: 40, opacity: 0, rotateX: -70, transformPerspective: 800, transformOrigin: '50% 0%', duration: 1.1, stagger: 0.09, ease: 'expo.out', scrollTrigger: { trigger: '#stats', start: 'top 88%' } });
-
-  // Listes : chaque bloc bascule dans la profondeur en arrivant
-  gsap.from('.cap', { y: 50, opacity: 0, rotateX: -55, transformPerspective: 900, transformOrigin: '50% 0%', duration: 1.2, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '#caps', start: 'top 85%' } });
+  gsap.from('.trade', { y: 46, opacity: 0, rotateX: -60, transformPerspective: 900, transformOrigin: '50% 0%', duration: 1.15, stagger: 0.09, ease: 'expo.out', scrollTrigger: { trigger: '#trades', start: 'top 88%' } });
   $$('.step').forEach((el) => gsap.from(el, { y: 34, opacity: 0, rotateX: -40, transformPerspective: 900, transformOrigin: '50% 0%', duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 92%' } }));
+  gsap.from('#tools .tag', { y: 16, opacity: 0, duration: 0.6, stagger: 0.025, ease: 'power3.out', scrollTrigger: { trigger: '#tools', start: 'top 92%' } });
+  gsap.from('.site', { y: 60, opacity: 0, rotateX: -24, transformPerspective: 1200, transformOrigin: '50% 0%', duration: 1.2, stagger: 0.1, ease: 'expo.out', scrollTrigger: { trigger: '#atSites', start: 'top 85%' } });
+  gsap.from('.clip', { y: 50, opacity: 0, duration: 1.1, stagger: 0.08, ease: 'expo.out', scrollTrigger: { trigger: '#reel', start: 'top 88%' } });
   // Les quatre pages se déplient en éventail
   gsap.set('#mdmPages', { perspective: 1500 });
   gsap.from('#mdmPages img', { yPercent: (i) => 20 + i * 12, rotateY: (i) => -58 + i * 9, rotateX: 12, z: (i) => -280 - i * 70, opacity: 0.25, transformOrigin: '0% 50%', ease: 'none', scrollTrigger: { trigger: '#mdmPages', start: 'top bottom', end: 'bottom 72%', scrub: 0.8 } });
-  gsap.from('.contact__text, .contact__actions > *, .contact__list > div', { y: 30, opacity: 0, duration: 1, stagger: 0.06, ease: 'expo.out', scrollTrigger: { trigger: '.contact__text', start: 'top 92%' } });
+  gsap.from('.ask, .contact__text, .contact__actions > *, .contact__list > div', { y: 30, opacity: 0, duration: 1, stagger: 0.06, ease: 'expo.out', scrollTrigger: { trigger: '.ask', start: 'top 92%' } });
 
   // En-tête : se cache en descendant
   ScrollTrigger.create({ start: 200, end: 'max', onUpdate: (s) => $('#header').classList.toggle('is-hidden', s.direction === 1 && !menuOpen) });
 }
 
-// ---------- Projets : scène épinglée, un projet par écran ----------
-const slides = $$('.slide'), railBtns = $$('#workRail button'), odo = $('#workOdo'), workBar = $('#workBar'), workPin = $('#workPin');
-const partsOf = (sl) => [...sl.children];
-let curSlide = -1, workST = null;
-function setSlide(i) {
-  if (i === curSlide) return;
-  const dir = i > curSlide ? 1 : -1, prev = slides[curSlide], next = slides[i]; curSlide = i;
+// ---------- Le voyage : scène épinglée, une station par écran ----------
+const slides = $$('.hz-slide'), railBtns = $$('#hzRail button'), hzBar = $('#hzBar'), hzPin = $('#hzPin');
+let curI = -1, curF = null, hzST = null;
+function setStation(i, future) {
+  if (i === curI && future === curF) return;
+  const changed = i !== curI, dir = i > curI ? 1 : -1, prev = slides[curI], next = slides[i];
+  curI = i; curF = future;
   railBtns.forEach((b, j) => { b.classList.toggle('is-active', j === i); b.classList.toggle('is-done', j < i); b.setAttribute('aria-current', j === i ? 'true' : 'false'); });
-  workPin.style.setProperty('--c', L.projects[i].color);
-  slides.forEach((s, j) => s.setAttribute('aria-hidden', j === i ? 'false' : 'true'));
-  gsap.to(odo, { yPercent: (-i * 100) / NP, duration: 0.9, ease: 'expo.inOut', overwrite: true });
-  if (prev) {
-    gsap.killTweensOf(partsOf(prev));
-    gsap.to(partsOf(prev), { y: -30 * dir, opacity: 0, filter: 'blur(8px)', duration: 0.34, ease: 'power2.in', stagger: 0.02, onComplete: () => { if (slides[curSlide] !== prev) prev.classList.remove('is-active'); } });
+  hzPin.style.setProperty('--c', future ? STATIONS[i].color : '#9DA4AE');
+  hzPin.classList.toggle('is-future', future);
+  next.classList.toggle('is-future', future);
+  if (changed) {
+    slides.forEach((s, j) => s.setAttribute('aria-hidden', j === i ? 'false' : 'true'));
+    if (prev) {
+      gsap.killTweensOf(prev);
+      gsap.to(prev, { y: -36 * dir, opacity: 0, filter: 'blur(8px)', duration: 0.34, ease: 'power2.in', onComplete: () => { if (slides[curI] !== prev) prev.classList.remove('is-active'); gsap.set(prev, { clearProps: 'filter' }); } });
+    }
+    next.classList.add('is-active'); gsap.killTweensOf(next);
+    gsap.fromTo(next, { y: 50 * dir, opacity: 0, filter: 'blur(10px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.9, ease: 'expo.out', delay: prev ? 0.14 : 0, clearProps: 'filter' });
   }
-  next.classList.add('is-active'); gsap.killTweensOf(partsOf(next));
-  gsap.fromTo(partsOf(next), { y: 54 * dir, opacity: 0, filter: 'blur(10px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.95, ease: 'expo.out', stagger: 0.055, delay: prev ? 0.16 : 0, clearProps: 'filter' });
-  gsap.fromTo($$('.slide__title .w > span', next), { yPercent: 115 * dir }, { yPercent: 0, duration: 1.1, ease: 'expo.out', stagger: 0.04, delay: prev ? 0.2 : 0.05, overwrite: true });
-  $$('.slide__metrics b', next).forEach((el, j) => gsap.delayedCall(0.3 + j * 0.09, () => scramble(el, 0.7)));
+  // La phase qui apparaît : ses mots montent derrière un masque, ses chiffres se décodent.
+  const ph = $(future ? '.hz-ph--future' : '.hz-ph--today', next);
+  gsap.fromTo($$('.w > span', ph), { yPercent: 115 }, { yPercent: 0, duration: 1, ease: 'expo.out', stagger: 0.035, delay: changed && prev ? 0.18 : 0.05, overwrite: true });
+  if (future) $$('.slide__metrics b', next).forEach((el, j) => gsap.delayedCall(0.3 + j * 0.09, () => scramble(el, 0.7)));
+  window.dispatchEvent(new CustomEvent('station:phase', { detail: { index: i, future } }));
 }
 if (reduced) {
-  // Sans animation : tous les projets s'affichent simplement l'un sous l'autre.
-  $('#travaux').classList.add('work--static');
-  slides.forEach((s) => { s.classList.add('is-active'); s.setAttribute('aria-hidden', 'false'); });
+  // Sans animation : toutes les stations s'affichent l'une sous l'autre, avec leurs deux phases.
+  $('#horizon').classList.add('hz--static');
+  slides.forEach((s) => { s.classList.add('is-active', 'is-future'); s.setAttribute('aria-hidden', 'false'); });
 } else {
-  setSlide(0);
-  workST = seg({ trigger: workPin, start: 'top top', end: () => `+=${Math.round(window.innerHeight * 0.85 * (NP - 1))}`, pin: true, scrub: true, invalidateOnRefresh: true,
-    onUpdate: (s) => { setSlide(Math.round(s.progress * (NP - 1))); workBar.style.transform = `scaleX(${s.progress})`; } }, hold);
-  // Suite du voyage : machine (fond calme) → capacités (constellation) → parcours (hélice) → contact (sphère)
-  stopST.pipeline = seg({ trigger: '.pipeline', start: 'top bottom', end: 'top top' });
-  stopST.motion = ScrollTrigger.create({ trigger: '#motion', start: 'top 30%' });
-  stopST.caps = seg({ trigger: '#capacites', start: 'top bottom', end: 'top 25%' });
-  stopST.path = seg({ trigger: '#parcours', start: 'top bottom', end: 'top 25%' });
-  stopST.contact = seg({ trigger: '#contact', start: 'top 80%', end: 'bottom bottom' });
+  setStation(0, false);
+  hzST = seg({ trigger: hzPin, start: 'top top', end: () => `+=${Math.round(window.innerHeight * 1.05 * NS)}`, pin: true, scrub: true, invalidateOnRefresh: true,
+    onUpdate: (s) => { const [i, f] = hzAt(s.progress); setStation(i, f); hzBar.style.transform = `scaleX(${s.progress})`; } }, hzMap);
 }
 
-// La sculpture de chaque projet se place dans la zone que son texte laisse libre : à côté sur grand écran,
-// au-dessus sur téléphone. C'est mesuré dans la page : la 3D respire à toutes les tailles, sans toucher le titre.
+// La sculpture de chaque station se place dans la zone que son texte laisse libre : à côté sur grand écran,
+// au-dessus sur téléphone. Mesuré dans la page : la 3D respire à toutes les tailles, sans toucher le texte ni le tableau de bord.
 function measureStages() {
   if (!hero || reduced) return;
-  const pr = workPin.getBoundingClientRect(), stage = $('#workStage').getBoundingClientRect();
-  const top = stage.top - pr.top, bottom = $('#workRail').getBoundingClientRect().top - pr.top - 12, out = {};
+  const pr = hzPin.getBoundingClientRect(), stage = $('#hzStage').getBoundingClientRect(), dash = $('#hzDash').getBoundingClientRect();
+  const top = Math.max(stage.top, mobile ? stage.top : dash.bottom + 8) - pr.top, bottom = $('#hzRail').getBoundingClientRect().top - pr.top - 12, out = {};
   const fit = (z) => (z.w > 60 && z.h > 60 ? Math.min(z.w / 3.2, z.h / 3.1) : 0);
   slides.forEach((sl, i) => {
-    const kids = [...sl.children], sr = sl.getBoundingClientRect();
-    const t = sr.top - pr.top + Math.min(...kids.map((c) => c.offsetTop)) - 16;
-    const r = sr.left + Math.max(...kids.map((c) => c.offsetLeft + c.offsetWidth)) + 28;
+    const sr = sl.getBoundingClientRect();
+    const t = Math.min(...$$('.hz-ph', sl).map((ph) => ph.offsetTop)) + sr.top - pr.top - 16;
+    const r = sr.right + 28;
     const beside = { x: r, y: top, w: stage.right - r, h: bottom - top };
-    const above = { x: stage.left, y: Math.min(top, 64), w: stage.width, top: true }; above.h = t - above.y;
-    out[TRACK[K.devis + i]] = fit(beside) >= fit(above) ? beside : above;
+    const above = { x: stage.left, y: dash.bottom - pr.top + 6, w: stage.width, top: true }; above.h = t - above.y;
+    const z = fit(beside) >= fit(above) ? beside : above;
+    out[STATIONS[i].id] = z; out[`auj_${STATIONS[i].id}`] = z;
   });
   hero.stages = out;
 }
 if (hero && !reduced) { measureStages(); ScrollTrigger.addEventListener('refresh', measureStages); }
+const stationY = (i, f = 0.6) => (hzST ? hzST.start + (hzST.end - hzST.start) * ((i + f) / NS) : slides[i].getBoundingClientRect().top + window.scrollY);
+$('#hzRail').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-go]'); if (!b) return;
+  const y = stationY(+b.dataset.go);
+  if (lenis) lenis.scrollTo(y, { duration: 1.4 }); else window.scrollTo(0, y);
+});
+
+// ---------- La salle des agents ----------
+const agEl = $('#agents');
+let agST = null, agPause = null;
+const room = initAgentRoom({
+  els: { section: agEl, stage: $('#agStage'), log: $('#agLog'), tabs: $('#agTabs'), ctl: $('#agCtl'), note: $('#agNote') },
+  texts: L.agents, reduced, compact: mobile,
+  ui: { play: T['agents.play'], pause: T['agents.pause'], skip: T['agents.skip'], replay: T['agents.replay'], scroll: T['agents.scroll'], log: T['agents.log'] },
+});
+if (!reduced) {
+  stopST.agents = seg({ trigger: agEl, start: 'top bottom', end: 'top top' });
+  // La mission JobHunter avance avec le défilement ; le monde de fond se met en pause pour laisser la carte graphique à la salle.
+  agST = ScrollTrigger.create({ trigger: '#agPin', start: 'top top', end: () => `+=${Math.round(window.innerHeight * (mobile ? 2.4 : 2.8))}`, pin: true, scrub: 0.4, invalidateOnRefresh: true,
+    onUpdate: (s) => room.scroll(s.progress),
+    // Pause différée : le monde finit d'abord de se poser (jamais figé en pleine transformation), puis s'arrête.
+    onToggle: (s) => { if (!hero) return; agPause?.kill(); if (s.isActive) agPause = gsap.delayedCall(1.6, () => hero.pause()); else hero.play(); } });
+  gsap.from('.ag__head .w > span', { yPercent: 115, duration: 1.2, ease: 'expo.out', stagger: 0.05, scrollTrigger: { trigger: agEl, start: 'top 70%' } });
+  stopST.path = seg({ trigger: '#trajectoire', start: 'top bottom', end: 'top 25%' });
+  stopST.contact = seg({ trigger: '#contact', start: 'top 80%', end: 'bottom bottom' });
+}
 
 // Les étapes du voyage, dans l'ordre de la page : nom, couleur et position de défilement où l'on y arrive.
 function routeStops() {
   const max = ScrollTrigger.maxScroll(window);
   const top = (el) => (el ? el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.3 : 0);
-  const at = (st, sel, end = true) => (st ? (end ? st.end : st.start) : top($(sel)));
   const list = [
     { label: lang === 'fr' ? 'Accueil' : 'Home', y: 0 },
-    { label: lang === 'fr' ? 'Manifeste' : 'Manifesto', y: at(stopST.manifeste, '#manifeste') },
-    ...L.projects.map((p, i) => ({ label: p.short, color: p.color, sub: true, y: workST ? workST.start + (workST.end - workST.start) * (i / (NP - 1)) : top(slides[i]) })),
-    { label: T['nav.pipeline'], y: at(stopST.pipeline, '#pipeline') },
-    { label: T['nav.motion'], y: at(stopST.motion, '#motion', false) },
-    { label: lang === 'fr' ? 'Capacités' : 'Capabilities', y: at(stopST.caps, '#capacites') },
-    { label: T['nav.path'], y: at(stopST.path, '#parcours') },
+    { label: lang === 'fr' ? 'Manifeste' : 'Manifesto', y: stopST.manifeste ? stopST.manifeste.end : top($('#manifeste')) },
+    ...STATIONS.map((s, i) => ({ label: `${pad(i + 1)} · ${projOf(s).short}`, color: s.color, sub: true, y: stationY(i) })),
+    { label: T['nav.agents'], y: agST ? agST.start : top(agEl) },
+    { label: T['nav.atelier'], y: top($('#atelier')) },
+    { label: T['nav.path'], y: stopST.path ? stopST.path.end : top($('#trajectoire')) },
     { label: T['nav.contact'], y: max, end: true },
   ];
   list.forEach((s) => { s.y = Math.max(0, Math.min(max, s.y)); });
   return list;
 }
-$('#workRail').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-go]'); if (!b || !workST) return;
-  const y = workST.start + (workST.end - workST.start) * (+b.dataset.go / (NP - 1));
-  if (lenis) lenis.scrollTo(y, { duration: 1.2 }); else window.scrollTo(0, y);
-});
-
-// ---------- Pipeline ----------
-const pipelineEl = $('.pipeline'), nodes = $$('.node'), logs = $$('#pipelineLog p:not(.is-human)'), humanLog = $('#pipelineLog .is-human');
-let pipe3d = null, validated = false, lastStep = 0;
-function setPipeline(p) {
-  const n = nodes.length, f = p * n; lastStep = p;
-  nodes.forEach((node, i) => { node.classList.toggle('is-on', f >= i + 0.15); $('.node__link', node).style.setProperty('--p', Math.max(0, Math.min(1, f - i - 0.35) * 1.6).toFixed(3)); });
-  logs.forEach((l, i) => l.classList.toggle('is-on', f >= i + 0.3));
-  humanLog.classList.toggle('is-on', validated && f >= HUMAN.index + 0.15);
-  // En 3D, le journal ne garde que ses trois dernières lignes, comme la fin d'un terminal.
-  const lit = [...logs, humanLog].filter((l) => l.classList.contains('is-on'));
-  [...logs, humanLog].forEach((l) => l.classList.toggle('is-tail', lit.indexOf(l) >= Math.max(0, lit.length - 3) && lit.includes(l)));
-}
-// « À vous de valider » : rien ne part sans le clic d'une personne.
-$('.node__ok').addEventListener('click', () => {
-  if (validated) return;
-  validated = true; pipelineEl.classList.add('is-validated');
-  $('.node--human .node__d').textContent = HUMAN.done;
-  pipe3d?.validate(); setPipeline(lastStep);
-});
-const mm = gsap.matchMedia();
-// Mur d'images courbe : état 3D de chaque vidéo (courbure du mur + inclinaison sous la souris)
-const clips = $$('.clip'), clipState = clips.map(() => ({ ry: 0, z: 0, hx: 0, hy: 0 }));
-let wall = false;
-const applyClip = (i) => { const s = clipState[i]; clips[i].style.transform = `${wall ? '' : 'perspective(900px) '}translateZ(${s.z.toFixed(1)}px) rotateY(${(s.ry + s.hy).toFixed(2)}deg) rotateX(${s.hx.toFixed(2)}deg)`; };
-if (reduced) setPipeline(1);
-else {
-  mm.add('(min-width: 761px)', () => {
-    gsap.from('.pipeline .w > span', { yPercent: 115, duration: 1.2, ease: 'expo.out', stagger: 0.05, scrollTrigger: { trigger: '.pipeline', start: 'top 70%' } });
-    // La machine en 3D ; sans WebGL, le schéma à plat reste en place.
-    try { pipe3d = initPipeline3D({ section: pipelineEl, mount: $('#pipelineGraph'), labels: nodes }); } catch { pipe3d = null; pipelineEl.classList.remove('is-3d'); }
-    if (pipe3d && validated) pipe3d.validate();
-    const drive = (p) => setPipeline(pipe3d ? pipe3d.setProgress(p) / nodes.length : p * 1.08);
-    ScrollTrigger.create({ trigger: '.pipeline__pin', start: 'top top', end: pipe3d ? '+=3000' : '+=2400', pin: true, scrub: 0.5, onUpdate: (s) => drive(s.progress),
-      onToggle: (s) => { if (!hero || !pipe3d) return; if (s.isActive) hero.pause(); else hero.play(); } });
-    drive(0);
-    // Bande de vidéos horizontale, en mur courbe
-    const reel = $('#reel');
-    const dist = () => Math.max(0, reel.scrollWidth - window.innerWidth + parseFloat(getComputedStyle(reel).paddingRight));
-    wall = true;
-    const curve = () => {
-      const vw = window.innerWidth, left = reel.getBoundingClientRect().left;
-      clips.forEach((c, i) => {
-        const n = gsap.utils.clamp(-1.4, 1.4, (left + c.offsetLeft + c.offsetWidth / 2 - vw / 2) / vw);
-        clipState[i].ry = -n * 40; clipState[i].z = -(Math.abs(n) ** 1.6) * 300; applyClip(i);
-      });
-    };
-    gsap.to(reel, { x: () => -dist(), ease: 'none', onUpdate: curve, scrollTrigger: { trigger: reel, start: 'center center', end: () => `+=${dist()}`, pin: '.motion', scrub: 0.6, invalidateOnRefresh: true, onRefresh: curve } });
-    curve();
-    return () => { pipe3d?.destroy(); pipe3d = null; wall = false; clipState.forEach((s, i) => { s.ry = 0; s.z = 0; applyClip(i); }); if (hero) hero.play(); };
-  });
-  // Téléphone : la même machine 3D, en version allégée, et le mur de vidéos courbe au glissement du doigt.
-  mm.add('(max-width: 760px)', () => {
-    gsap.from('.pipeline .w > span', { yPercent: 115, duration: 1.2, ease: 'expo.out', stagger: 0.05, scrollTrigger: { trigger: '.pipeline', start: 'top 80%' } });
-    try { pipe3d = initPipeline3D({ section: pipelineEl, mount: $('#pipelineGraph'), labels: nodes, compact: true }); } catch { pipe3d = null; pipelineEl.classList.remove('is-3d'); }
-    if (pipe3d) {
-      if (validated) pipe3d.validate();
-      const drive = (p) => setPipeline(pipe3d.setProgress(p) / nodes.length);
-      ScrollTrigger.create({ trigger: '.pipeline__pin', start: 'top top', end: '+=2400', pin: true, scrub: 0.5, onUpdate: (s) => drive(s.progress),
-        onToggle: (s) => { if (!hero) return; if (s.isActive) hero.pause(); else hero.play(); } });
-      drive(0);
-    } else {
-      ScrollTrigger.create({ trigger: '.pipeline__stage', start: 'top 75%', end: 'bottom 55%', scrub: 0.5, onUpdate: (s) => setPipeline(s.progress * 1.08) });
-    }
-    const reel = $('#reel');
-    const curve = () => {
-      const vw = window.innerWidth, left = reel.getBoundingClientRect().left - reel.scrollLeft;
-      clips.forEach((c, i) => {
-        const n = gsap.utils.clamp(-1.2, 1.2, (left + c.offsetLeft + c.offsetWidth / 2 - vw / 2) / vw);
-        clipState[i].ry = -n * 26; clipState[i].z = -(Math.abs(n) ** 1.5) * 140; applyClip(i);
-      });
-    };
-    reel.addEventListener('scroll', curve, { passive: true });
-    curve();
-    return () => { reel.removeEventListener('scroll', curve); pipe3d?.destroy(); pipe3d = null; clipState.forEach((s, i) => { s.ry = 0; s.z = 0; applyClip(i); }); if (hero) hero.play(); };
-  });
-}
 
 // ---------- Vidéos : lecture seulement à l'écran ----------
+const clips = $$('.clip');
 const io = new IntersectionObserver((entries) => entries.forEach((e) => {
   const v = e.target;
   if (e.isIntersecting) { if (!v.src) v.src = v.dataset.src; if (!reduced) v.play().catch(() => {}); } else v.pause();
@@ -409,7 +376,8 @@ lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeVide
 const caseEl = $('#case'), caseBody = $('#caseBody');
 function renderCase(id) {
   const i = L.projects.findIndex((p) => p.id === id), p = L.projects[i], next = L.projects[(i + 1) % L.projects.length];
-  caseBody.innerHTML = `<p class="case__n mono">${pad(i + 1)} / ${pad(L.projects.length)} — ${esc(p.year)}</p>
+  const st = STATIONS.find((s) => s.project === id), ss = st ? shownStatus(st) : null;
+  caseBody.innerHTML = `<p class="case__n mono">${pad(i + 1)} / ${pad(L.projects.length)}${st ? ` · <span class="badge badge--${ss}">${esc(HZ.status[ss])}</span>` : ''}</p>
     <h2 class="case__title" id="caseTitle">${esc(p.title)}</h2><p class="case__sub">${esc(p.sub)}</p>
     <div class="case__grid"><div><p class="case__summary">${esc(p.summary)}</p>${p.img ? `<img class="case__img" src="${p.img}" alt="${esc(p.title)}" />` : ''}
       <div class="case__links">${p.links.map(([t, u]) => `<a class="btn btn--primary" href="${u}"${u.startsWith('#') ? '' : ' target="_blank" rel="noopener"'}><span class="btn__fill"></span><span>${esc(t)}</span><span class="btn__arrow">→</span></a>`).join('')}
@@ -436,7 +404,7 @@ function closeCase() {
     .to('.case__scroll', { clipPath: 'inset(0 0 100% 0)', duration: reduced ? 0 : 0.6, ease: 'expo.inOut' })
     .to('.case__curtain', { scaleY: 0, transformOrigin: 'top', duration: reduced ? 0 : 0.5, ease: 'expo.inOut' }, '-=0.3');
 }
-$('#workStage').addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) openCase(b.dataset.open); });
+$('#hzStage').addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) openCase(b.dataset.open); });
 
 // ---------- L'essentiel en 30 secondes (recruteur pressé) ----------
 const quick = $('#quick'), Q = L.quick, dimO = { v: 1 };
@@ -444,6 +412,7 @@ let quickOpen = false, quickTl = null;
 $('#quickBody').innerHTML = `<p class="label mono">${esc(Q.label)}</p>
   <h2 class="quick__title" id="quickTitle">${Q.title}</h2>
   <p class="quick__lede">${esc(Q.lede)}</p>
+  <div class="quick__trades">${L.trades.map(([t, d]) => `<div><b>${esc(t)}</b><span>${esc(d)}</span></div>`).join('')}</div>
   <div class="quick__proofs">${Q.proofs.map(([n, t, src, id]) => `<button class="proof" type="button" data-proof="${id}"><b>${esc(n)}</b><span>${esc(t)}</span><i class="mono">${esc(src)} →</i></button>`).join('')}</div>
   <dl class="quick__facts">${Q.facts.map(([k, v]) => `<div><dt class="mono">${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
   <div class="quick__stack">${Q.stack.map((t) => `<i class="tag">${esc(t)}</i>`).join('')}</div>
@@ -495,55 +464,49 @@ menuBtn.addEventListener('click', () => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeVideo(); closeCase(); closeMenu(); closeQuick(); } });
 
-// ---------- Curseur, aimants, aperçus ----------
-const preview = $('#preview'), previewImg = $('img', preview);
-function hidePreview() { gsap.to(preview, { opacity: 0, duration: 0.3 }); gsap.to('.preview__inner', { clipPath: 'inset(100% 0 0 0)', duration: 0.4, ease: 'power3.in' }); }
+// ---------- Curseur, aimants, inclinaisons ----------
+const preview = $('#preview');
+function hidePreview() { gsap.to(preview, { opacity: 0, duration: 0.3 }); }
 if (fine && !reduced) {
   const cur = $('.cursor'), dot = $('.cursor__dot'), ring = $('.cursor__ring'), label = $('.cursor__label');
   const dx = gsap.quickTo(dot, 'x', { duration: 0.08 }), dy = gsap.quickTo(dot, 'y', { duration: 0.08 });
   const rx = gsap.quickTo(ring, 'x', { duration: 0.45, ease: 'power3' }), ry = gsap.quickTo(ring, 'y', { duration: 0.45, ease: 'power3' });
-  const px = gsap.quickTo(preview, 'x', { duration: 0.7, ease: 'power3' }), py = gsap.quickTo(preview, 'y', { duration: 0.7, ease: 'power3' });
-  const pr = gsap.quickTo(preview, 'rotate', { duration: 0.7, ease: 'power3' });
-  let lastX = 0;
-  window.addEventListener('pointermove', (e) => { dx(e.clientX); dy(e.clientY); rx(e.clientX); ry(e.clientY); px(e.clientX + 180); py(e.clientY); pr(Math.max(-10, Math.min(10, (e.clientX - lastX) * 0.6))); lastX = e.clientX; }, { passive: true });
+  window.addEventListener('pointermove', (e) => { dx(e.clientX); dy(e.clientY); rx(e.clientX); ry(e.clientY); }, { passive: true });
   document.addEventListener('pointerover', (e) => {
     const v = e.target.closest('[data-cursor="view"]'), a = e.target.closest('a, button');
     cur.classList.toggle('is-view', !!v); cur.classList.toggle('is-link', !v && !!a);
-    label.textContent = v ? (v.classList.contains('clip') ? '▶' : lang === 'fr' ? 'Ouvrir' : 'Open') : '';
-    const row = e.target.closest('.row[data-img]');
-    if (row && !caseOpen) {
-      if (previewImg.getAttribute('src') !== row.dataset.img) previewImg.src = row.dataset.img;
-      gsap.to(preview, { opacity: 1, duration: 0.3 });
-      gsap.to('.preview__inner', { clipPath: 'inset(0% 0 0 0)', duration: 0.7, ease: 'expo.out', overwrite: true });
-      gsap.fromTo(previewImg, { scale: 1.35 }, { scale: 1, duration: 1, ease: 'expo.out', overwrite: true });
-    } else if (!e.target.closest('.row[data-img]')) hidePreview();
+    label.textContent = v ? (v.classList.contains('clip') ? '▶' : '↗') : '';
   });
   $$('[data-magnetic]').forEach((el) => {
     const mxq = gsap.quickTo(el, 'x', { duration: 0.6, ease: 'elastic.out(1,0.5)' }), myq = gsap.quickTo(el, 'y', { duration: 0.6, ease: 'elastic.out(1,0.5)' });
     el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); mxq((e.clientX - r.left - r.width / 2) * 0.35); myq((e.clientY - r.top - r.height / 2) * 0.35); });
     el.addEventListener('pointerleave', () => { mxq(0); myq(0); });
   });
-  $$('.cap').forEach((el) => el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); el.style.setProperty('--mx', `${e.clientX - r.left}px`); el.style.setProperty('--my', `${e.clientY - r.top}px`); }));
-  clips.forEach((el, i) => {
-    el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); gsap.to(clipState[i], { hy: ((e.clientX - r.left) / r.width - 0.5) * 8, hx: -((e.clientY - r.top) / r.height - 0.5) * 8, duration: 0.5, ease: 'power3', overwrite: true, onUpdate: () => applyClip(i) }); });
-    el.addEventListener('pointerleave', () => gsap.to(clipState[i], { hx: 0, hy: 0, duration: 0.8, ease: 'elastic.out(1,0.6)', overwrite: true, onUpdate: () => applyClip(i) }));
+  // Cartes qui s'inclinent sous la souris : métiers, sites, films
+  $$('.trade, .site, .clip').forEach((el) => {
+    gsap.set(el, { transformPerspective: 900 });
+    const ty = gsap.quickTo(el, 'rotationY', { duration: 0.6, ease: 'power3' }), tx = gsap.quickTo(el, 'rotationX', { duration: 0.6, ease: 'power3' });
+    el.addEventListener('pointermove', (e) => { const r = el.getBoundingClientRect(); ty(((e.clientX - r.left) / r.width - 0.5) * 7); tx(-((e.clientY - r.top) / r.height - 0.5) * 7); el.style.setProperty('--mx', `${e.clientX - r.left}px`); el.style.setProperty('--my', `${e.clientY - r.top}px`); });
+    el.addEventListener('pointerleave', () => { ty(0); tx(0); });
   });
-  // Le nom et l'aperçu des projets s'inclinent dans l'espace avec la souris
+  // Le nom s'incline dans l'espace avec la souris
   const heroTitle = $('.hero__title');
   gsap.set(heroTitle, { transformPerspective: 1200 });
   const tiltY = gsap.quickTo(heroTitle, 'rotationY', { duration: 1.1, ease: 'power3' }), tiltX = gsap.quickTo(heroTitle, 'rotationX', { duration: 1.1, ease: 'power3' });
-  gsap.set(preview, { transformPerspective: 900 });
-  const prY = gsap.quickTo(preview, 'rotationY', { duration: 0.7, ease: 'power3' }), prX = gsap.quickTo(preview, 'rotationX', { duration: 0.7, ease: 'power3' });
-  let lastX2 = 0, lastY = 0, rest = 0;
-  window.addEventListener('pointermove', (e) => {
-    if (window.scrollY < window.innerHeight) { tiltY((e.clientX / window.innerWidth - 0.5) * 9); tiltX(-(e.clientY / window.innerHeight - 0.5) * 6); }
-    prY(gsap.utils.clamp(-28, 28, (e.clientX - lastX2) * 1.4)); prX(gsap.utils.clamp(-22, 22, -(e.clientY - lastY) * 1.4)); lastX2 = e.clientX; lastY = e.clientY;
-    clearTimeout(rest); rest = setTimeout(() => { prY(0); prX(0); }, 140);
-  }, { passive: true });
+  window.addEventListener('pointermove', (e) => { if (window.scrollY < window.innerHeight) { tiltY((e.clientX / window.innerWidth - 0.5) * 9); tiltX(-(e.clientY / window.innerHeight - 0.5) * 6); } }, { passive: true });
 }
 
 // ---------- Couche cinéma ----------
-initExtras({ lenis, hero, reduced, fine, lang, routeStops, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#travaux', T['nav.work']], ['#pipeline', T['nav.pipeline']], ['#motion', T['nav.motion']], ['#capacites', lang === 'fr' ? 'Capacités' : 'Capabilities'], ['#parcours', T['nav.path']], ['#contact', T['nav.contact']]] });
+initExtras({ lenis, hero, reduced, fine, lang, routeStops, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#horizon', T['nav.horizon']], ['#agents', T['nav.agents']], ['#atelier', T['nav.atelier']], ['#trajectoire', T['nav.path']], ['#contact', T['nav.contact']]] });
+
+// ---------- Épilogue : la tâche à ne plus jamais faire ----------
+// Rien n'est envoyé par le site : la messagerie du visiteur s'ouvre avec le message prêt, il décide d'envoyer.
+$('#askForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const task = $('#askInput').value.trim();
+  const body = `${T['contact.body']}${task || '…'}\n`;
+  window.location.href = `mailto:${contact.email}?subject=${encodeURIComponent(T['contact.subject'])}&body=${encodeURIComponent(body)}`;
+});
 
 // ---------- Divers ----------
 langBtn.addEventListener('click', () => {
@@ -559,9 +522,16 @@ $('#copyBtn').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(contact.email); lbl.textContent = T['contact.copied']; } catch { lbl.textContent = contact.email; }
   setTimeout(() => { lbl.textContent = T['contact.copy']; }, 2200);
 });
+// L'heure du pied de page : celle de Paris, en avance du temps gagné pendant les sauts du voyage.
 const clock = $('#clock'), fmt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const tick = () => { clock.textContent = fmt.format(new Date()); }; tick(); setInterval(tick, 1000);
+const tick = () => { clock.textContent = fmt.format(new Date(Date.now() + (chrono?.skew || 0))); }; tick(); setInterval(tick, 1000);
 document.addEventListener('visibilitychange', () => { if (!hero) return; if (document.hidden) hero.pause(); else hero.play(); });
-if (import.meta.env.DEV) window.__dbg = { segs, hero, ScrollTrigger, K, lenis, go: (y) => (lenis ? lenis.scrollTo(y, { immediate: true, force: true }) : window.scrollTo(0, y)) };
+if (import.meta.env.DEV) {
+  const go = (y) => (lenis ? lenis.scrollTo(y, { immediate: true, force: true }) : window.scrollTo(0, y));
+  window.__dbg = { segs, hero, ScrollTrigger, K, lenis, go,
+    // __dbg.goto('radar', 0.6) : se placer dans le futur d'une station (f < 0,3 : son « aujourd'hui »).
+    goto: (id, f = 0.6) => go(stationY(STATIONS.findIndex((s) => s.id === id), f)),
+    room, agST };
+}
 window.addEventListener('load', () => ScrollTrigger.refresh());
 document.fonts?.ready.then(() => ScrollTrigger.refresh());

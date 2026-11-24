@@ -1,10 +1,13 @@
 // « La Machine » : un seul nuage de particules traverse tout le site.
-// Il écrit le nom, devient sphère, puis prend la forme de chaque projet au fil du défilement.
-// Chaque forme vit : l'onde sonore bat, le radar balaie, les voyants du serveur clignotent.
+// Il écrit le nom, devient sphère, puis voyage vers le futur : à chaque station, la tâche manuelle d'aujourd'hui
+// (une silhouette modélisée dans Blender, gris papier, saccadée à 12 images/s) bascule dans son futur automatisé
+// (la sculpture lumineuse du projet, parfaitement fluide). Entre deux stations, on franchit une porte-cadran.
 import {
   WebGLRenderer, Scene, PerspectiveCamera, BufferGeometry, BufferAttribute, ShaderMaterial,
   Points, AdditiveBlending, Color, Vector3, Vector2, Mesh, PlaneGeometry, Group,
 } from 'three';
+import { STATIONS, byId } from './stations.js';
+import { loadChr, sampleChr } from './shapes-loader.js';
 
 const TAU = Math.PI * 2;
 const HALF = Math.tan((35 * Math.PI) / 360); // demi-ouverture verticale de la caméra (35°)
@@ -12,9 +15,12 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // Centre de l'orbe vocale du standardiste (repris tel quel dans le shader).
 const VOICE_ORB = [-1.3, 0.05, 0];
 
-// Ordre du voyage : la valeur « k » avance le long de cette piste.
-export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'devis', 'sms', 'voice', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
+// Ordre du voyage : la valeur « k » avance le long de cette piste. Les stations viennent de stations.js :
+// pour chacune, l'étape « aujourd'hui » (auj_<id>) puis l'étape « futur » (<id>), au même endroit de la route.
+export const TRACK = ['cloud', 'name', 'sphere', 'terrain', ...STATIONS.flatMap((s) => [`auj_${s.id}`, s.id]), 'dim', 'path', 'end'];
 export const K = Object.fromEntries(TRACK.map((n, i) => [n, i]));
+const isToday = (key) => key.startsWith('auj_');
+const stationOf = (key) => byId[isToday(key) ? key.slice(4) : key] || null;
 
 // ---------- Hasard reproductible ----------
 function mulberry(seed) {
@@ -54,6 +60,13 @@ function builder(N, seed) {
         const y = rnd() * 2 - 1, a = rnd() * TAU, q = Math.sqrt(1 - y * y);
         put(c[0] + Math.cos(a) * q * r, c[1] + y * r, c[2] + Math.sin(a) * q * r, tone, prm);
       }
+    },
+    // La marque d'un agent : un anneau et sa barre de regard, comme les agents de la salle (section « Les agents au travail »).
+    // prm 40 : l'anneau, qui respire · prm 41 : la barre de regard, qui s'allume quand l'agent travaille.
+    agent(c, s = 1) {
+      b.ring(b.n(0.016), c, 0.24 * s, 'xy', 1, 0.008, 40);
+      b.ring(b.n(0.006), c, 0.15 * s, 'xy', 0.5, 0.006, 40);
+      for (let k = 0, n = b.n(0.008); k < n; k++) put(c[0] + (rnd() - 0.5) * 0.24 * s, c[1] + j(0.022 * s), c[2] + 0.02 + j(0.01), 1, 41);
     },
     done(spread = [5.2, 3.2, 2.6]) {
       while (i < N) put(j(spread[0] * 2), j(spread[1] * 2), j(spread[2] * 2) - 0.6, 0, -1);
@@ -133,6 +146,7 @@ const SHAPES = {
     }
     b.ring(b.n(0.1), [0, 0, 0], 1.28, 'yz', 0.5, 0.015, 2);
     b.ring(b.n(0.06), [0, 0, 0], 0.92, 'yz', 1, 0.012, 3);
+    b.agent([0, 1.45, 0], 0.85);
     return b.done();
   },
   // Accueil client par SMS : le téléphone sonne dans le vide, puis la conversation s'écrit bulle après bulle,
@@ -180,6 +194,7 @@ const SHAPES = {
       }
     }
     b.ring(b.n(0.03), [0, -1.5, 0], 1.7, 'xz', 0, 0.012, 4);
+    b.agent([-1.2, 1.2, 0.3], 0.9);
     return b.done();
   },
   // Devis IA : la demande du client coule vers la feuille ; le devis s'écrit ligne par ligne, prix et total en couleur d'accent ;
@@ -244,6 +259,7 @@ const SHAPES = {
     // L'éclat de l'accord : un anneau qui part de la case cochée.
     b.ring(b.n(0.016), [-0.52, -0.84, z + 0.02], 0.12, 'xy', 1, 0.008, 4.5);
     b.ring(b.n(0.03), [0, -1.32, 0], 1.65, 'xz', 0, 0.012, 5);
+    b.agent([-1.35, -0.55, 0.3], 0.85);
     return b.done();
   },
   // Standardiste vocal : l'orbe de la voix respire et parle ; la parole ondule, se redresse en donnée,
@@ -282,6 +298,7 @@ const SHAPES = {
       b.put(c[0] + b.j(0.012), c[1] + amp + b.j(0.012), c[2] + b.j(0.012), b.rnd() < 0.18 ? 1 : 0, t * 0.98);
     }
     b.ring(b.n(0.04), [0.1, -1.08, 0], 1.95, 'xz', 0, 0.012, 4);
+    b.agent([-1.3, 0.92, 0.1], 0.85);
     return b.done();
   },
   // JobHunter : 74 offres sur le radar, 34 retenues se dressent en colonnes de lumière.
@@ -296,6 +313,8 @@ const SHAPES = {
       if (kept) { const h = 0.22 + b.rnd() * 0.6; for (let k = 0; k < keep; k++) { const top = b.rnd() < 0.3; b.put(x + b.j(top ? 0.07 : 0.022), top ? h + b.j(0.05) : b.rnd() * h, z + b.j(top ? 0.07 : 0.022), 1, a / TAU); } }
       else for (let k = 0; k < drop; k++) b.put(x + b.j(0.06), b.j(0.012), z + b.j(0.06), 0.15, a / TAU);
     }
+    // L'équipe d'agents qui veille sur le radar (vue d'en haut, la sculpture est couchée).
+    b.agent([-1.2, 0.95, -1.2], 0.9); b.agent([1.25, 0.8, -1.0], 0.75); b.agent([0, 1.05, 1.4], 0.75);
     return b.done();
   },
   // Aiguilleur : un e-mail entre, la voie se divise vers le bon collègue.
@@ -323,20 +342,60 @@ const SHAPES = {
     b.line(nE, [ex - ew, ey - eh, 0], [ex - ew, ey + eh, 0], 1, 0.01, 0, 0); b.line(nE, [ex + ew, ey - eh, 0], [ex + ew, ey + eh, 0], 1, 0.01, 0, 0);
     b.line(nE, [ex - ew, ey + eh, 0], [ex, ey - 0.02, 0], 1, 0.01, 0, 0); b.line(nE, [ex + ew, ey + eh, 0], [ex, ey - 0.02, 0], 1, 0.01, 0, 0);
     b.ring(b.n(0.03), J, 0.17, 'xy', 1, 0.01, 0.4);
+    b.agent([-0.35, 0.62, 0.1], 0.8);
     return b.done();
   },
-  // VorcheX : la baie du serveur, ses voyants, et trois faisceaux — les trois seuls ports ouverts.
+  // Le socle (VorcheX) : toutes les équipes d'agents reliées en constellation, et l'humain au centre — un simple carré blanc.
+  // prm : 0 structure des équipes · 1–1,99 messages qui voyagent vers le centre (position sur la fibre)
+  // · 2 l'humain · 2,5 son halo · 3 l'anneau extérieur qui tourne lentement.
   server(N) {
-    const b = builder(N, 51), U = 5, w = 1.7, h = 0.34, d = 1.0, gap = 0.09, total = U * h + (U - 1) * gap;
-    for (let u = 0; u < U; u++) {
-      const cy = -total / 2 + h / 2 + u * (h + gap);
-      b.box(b.n(0.075), [0, cy, 0], [w, h, d]);
-      for (let k = 0, n = b.n(0.035); k < n; k++) b.put(-w / 2 + 0.5 + b.rnd() * (w - 0.62), cy + (Math.floor(b.rnd() * 3) - 1) * 0.085 + b.j(0.006), d / 2 + 0.002, 0, 0);
-      for (let l = 0; l < 3; l++) { const ph = b.rnd(); for (let k = 0, n = b.n(0.006); k < n; k++) b.put(-w / 2 + 0.12 + l * 0.11 + b.j(0.024), cy + b.j(0.024), d / 2 + 0.01, 1, ph); }
-    }
-    for (let p = 0; p < 3; p++) b.line(b.n(0.045), [(p - 1) * 0.5, total / 2, 0], [(p - 1) * 0.5, total / 2 + 1.25, 0], 0.6, 0.014, 0, 1);
-    b.ring(b.n(0.06), [0, -total / 2 - 0.12, 0], 1.45, 'xz', 0, 0.012, 0);
-    b.ring(b.n(0.035), [0, -total / 2 - 0.12, 0], 1.05, 'xz', 0, 0.01, 0);
+    const b = builder(N, 51), HUB = [];
+    for (let q = 0; q < 6; q++) { const a = (q / 6) * TAU + 0.52; HUB.push([Math.cos(a) * 1.5, Math.sin(a) * 1.12, (q % 2 ? 0.35 : -0.35)]); }
+    HUB.forEach((h, q) => {
+      // Une équipe : un orchestrateur (la marque d'agent) et ses quatre spécialistes autour de lui.
+      b.agent(h, 0.78);
+      for (let s = 0; s < 4; s++) {
+        const a = (s / 4) * TAU + q, c = [h[0] + Math.cos(a) * 0.42, h[1] + Math.sin(a) * 0.36, h[2] + Math.sin(a * 2) * 0.12];
+        b.ring(b.n(0.006), c, 0.07, 'xy', 0, 0.006, 0); b.line(b.n(0.004), h, c, 0, 0.006, 0, 0);
+      }
+      // La fibre vers le centre, où voyagent les messages, et le lien vers l'équipe voisine.
+      b.line(b.n(0.03), h, [0, 0, 0], 0, 0.01, 1, 1.99);
+      b.line(b.n(0.012), h, HUB[(q + 1) % 6], 0, 0.008, 0, 0);
+    });
+    // L'humain : un carré blanc, sobre, au centre de tout.
+    const S = 0.24;
+    [[-S, -S, S, -S], [S, -S, S, S], [S, S, -S, S], [-S, S, -S, -S]].forEach(([x0, y0, x1, y1]) => b.line(b.n(0.012), [x0, y0, 0.05], [x1, y1, 0.05], 1, 0.006, 2, 2));
+    for (let k = 0, n = b.n(0.03); k < n; k++) b.put((b.rnd() - 0.5) * 2 * S * 0.82, (b.rnd() - 0.5) * 2 * S * 0.82, 0.05 + b.j(0.01), 1, 2);
+    b.ring(b.n(0.02), [0, 0, 0.05], 0.44, 'xy', 1, 0.006, 2.5);
+    b.ring(b.n(0.05), [0, 0, 0], 2.15, 'xy', 0, 0.014, 3);
+    return b.done();
+  },
+  // Créer un site (vision) : dans un cadre de navigateur, la page se construit toute seule, bloc par bloc,
+  // pendant qu'un agent la surveille. prm : 0 cadre · 1–1,99 blocs dans l'ordre de construction · 2 curseur de l'agent.
+  site(N) {
+    const b = builder(N, 141), W = 2.7, H = 1.95, z = 0;
+    const rect = (n, cx, cy, w, h, tone, prm, zz = z) => { for (let k = 0; k < n; k++) { const q = rrPoint(b.rnd(), w, h, Math.min(0.05, h / 2)); b.put(cx + q[0] + b.j(0.006), cy + q[1] + b.j(0.006), zz + b.j(0.006), tone, prm); } };
+    const fill = (n, cx, cy, w, h, tone, prm, zz = z + 0.02) => { for (let k = 0; k < n; k++) b.put(cx + (b.rnd() - 0.5) * w, cy + (b.rnd() - 0.5) * h, zz + b.j(0.006), tone, prm); };
+    // Le cadre du navigateur, sa barre et ses trois pastilles, et une seconde fenêtre en retrait.
+    rect(b.n(0.08), 0, 0, W, H, 0, 0);
+    rect(b.n(0.03), 0.14, -0.12, W, H, 0, 0, -0.25);
+    b.line(b.n(0.016), [-W / 2, H / 2 - 0.2, z], [W / 2, H / 2 - 0.2, z], 0, 0.006, 0, 0);
+    [-1.22, -1.12, -1.02].forEach((x) => b.ring(b.n(0.004), [x, H / 2 - 0.1, z], 0.025, 'xy', 0, 0.004, 0));
+    rect(b.n(0.012), 0.15, H / 2 - 0.1, 1.5, 0.09, 0, 0);
+    // Les blocs, construits dans l'ordre : en-tête, grand visuel et titre, trois cartes, puis le bouton d'action.
+    const blocks = [
+      () => { rect(b.n(0.02), 0, 0.62, W - 0.2, 0.16, 0, 1.0); fill(b.n(0.008), -1.05, 0.62, 0.3, 0.06, 1, 1.0); },
+      () => { rect(b.n(0.03), -0.55, 0.18, 1.4, 0.6, 0, 1.15); },
+      () => { fill(b.n(0.016), -0.62, 0.3, 1.1, 0.07, 1, 1.25); fill(b.n(0.01), -0.75, 0.13, 0.85, 0.04, 0, 1.25); },
+      () => { rect(b.n(0.02), 0.78, 0.18, 0.86, 0.6, 0, 1.35); fill(b.n(0.012), 0.78, 0.18, 0.7, 0.44, 0.35, 1.35); },
+      () => { [-0.86, 0, 0.86].forEach((x, i) => { rect(b.n(0.014), x, -0.46, 0.76, 0.5, 0, 1.5 + i * 0.08); fill(b.n(0.006), x, -0.36, 0.56, 0.05, 0, 1.5 + i * 0.08); }); },
+      () => { rect(b.n(0.016), 0, -0.84, 0.62, 0.15, 1, 1.78); fill(b.n(0.012), 0, -0.84, 0.5, 0.08, 1, 1.78); },
+    ];
+    blocks.forEach((f) => f());
+    // L'agent qui construit, à l'angle de la fenêtre, et le fil qui le relie à la page.
+    b.agent([-1.62, 1.18, 0.35], 0.85);
+    b.curve(b.n(0.014), (t) => [lerp(-1.4, -0.9, t), lerp(1.05, 0.7, t) + Math.sin(t * Math.PI) * 0.1, lerp(0.3, 0.04, t)], 1, 0.006, 2, 2);
+    b.ring(b.n(0.03), [0, -1.3, 0], 1.7, 'xz', 0, 0.012, 0);
     return b.done();
   },
   // Encaisse : trois factures empilées, et le tampon qui valide.
@@ -353,6 +412,7 @@ const SHAPES = {
     b.ring(b.n(0.05), [0.64, -0.58, 0.62], 0.3, 'xy', 1, 0.012, 2);
     b.line(b.n(0.02), [0.49, -0.58, 0.62], [0.59, -0.69, 0.62], 1, 0.014, 2, 2);
     b.line(b.n(0.035), [0.59, -0.69, 0.62], [0.81, -0.44, 0.62], 1, 0.014, 2, 2);
+    b.agent([-1.15, 1.25, 0.4], 0.85);
     return b.done();
   },
   // Motion : un ruban de pellicule qui ondule, et le bouton lecture.
@@ -370,26 +430,46 @@ const SHAPES = {
     [[A, B], [B, C], [C, A]].forEach(([p, q]) => b.line(b.n(0.022), [p[0], p[1], z], [q[0], q[1], z], 1, 0.012, 0.5, 0.5));
     for (let k = 0, n = b.n(0.05); k < n; k++) { let r1 = b.rnd(), r2 = b.rnd(); if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; } b.put(A[0] + (B[0] - A[0]) * r1 + (C[0] - A[0]) * r2, A[1] + (B[1] - A[1]) * r1 + (C[1] - A[1]) * r2, z + b.j(0.01), 1, 0.5); }
     b.ring(b.n(0.06), [0, 0, z], 0.58, 'xy', 1, 0.012, 0.5);
+    b.agent([1.45, 1.05, 0.3], 0.8);
     return b.done();
   },
-  // Capacités : six savoir-faire reliés à un même cœur.
-  constellation(N) {
-    const b = builder(N, 81), nodes = [];
-    for (let q = 0; q < 6; q++) { const a = (q / 6) * TAU + 0.3; nodes.push([Math.cos(a) * 1.55, Math.sin(a) * 1.15, q % 2 ? 0.4 : -0.4]); }
-    b.shell(b.n(0.12), [0, 0, 0], 0.34, 1, 0);
-    nodes.forEach((p, q) => { b.shell(b.n(0.06), p, 0.22, 1, 0); b.line(b.n(0.035), [0, 0, 0], p, 0, 0.012, 0, 1); b.line(b.n(0.02), p, nodes[(q + 1) % 6], 0, 0.01, 0, 1); });
-    return b.done();
-  },
-  // Parcours : une double hélice qui monte, six étapes marquées.
+  // La trajectoire : une double hélice qui monte de mes premières étapes jusqu'à 2026 (pleine),
+  // puis se prolonge en pointillés lumineux vers ce que je veux construire ensuite.
+  // prm : 0–0,7 la partie parcourue (hauteur) · 0,7–1 le prolongement en pointillés (prm > 0,7) · étapes marquées en accent.
   helix(N) {
-    const b = builder(N, 91), H = 4.2, R = 0.78, turns = 2.4;
+    const b = builder(N, 91), H = 4.4, R = 0.78, turns = 2.6, DONE = 0.7;
     const S = (t, ph) => { const a = t * turns * TAU + ph; return [Math.cos(a) * R, (t - 0.5) * H, Math.sin(a) * R]; };
-    b.curve(b.n(0.24), (t) => S(t, 0), 0, 0.014); b.curve(b.n(0.24), (t) => S(t, Math.PI), 0, 0.014);
-    for (let k = 0, n = b.n(0.18); k < n; k++) { const t = Math.round(b.rnd() * 26) / 26, p = S(t, 0), q = S(t, Math.PI), s = b.rnd(); b.put(lerp(p[0], q[0], s), p[1] + b.j(0.01), lerp(p[2], q[2], s), 0, t); }
-    for (let q = 0; q < 6; q++) b.shell(b.n(0.022), S(0.1 + q * 0.16, 0), 0.13, 1, 0.1 + q * 0.16);
+    // Les deux brins : pleins jusqu'à aujourd'hui, en pointillés au-delà.
+    for (const ph of [0, Math.PI]) {
+      b.curve(b.n(0.2), (t) => S(t * DONE, ph), 0, 0.014, 0, DONE);
+      for (let k = 0, n = b.n(0.05); k < n; k++) { const t = DONE + (Math.floor(b.rnd() * 26) + b.rnd() * 0.32) / 26 * (1 - DONE), c = S(t, ph); b.put(c[0] + b.j(0.01), c[1] + b.j(0.01), c[2] + b.j(0.01), 0.6, t); }
+    }
+    for (let k = 0, n = b.n(0.15); k < n; k++) { const t = (Math.round(b.rnd() * 20) / 20) * DONE, p = S(t, 0), q = S(t, Math.PI), s = b.rnd(); b.put(lerp(p[0], q[0], s), p[1] + b.j(0.01), lerp(p[2], q[2], s), 0, t); }
+    for (let q = 0; q < 6; q++) b.shell(b.n(0.02), S(0.08 + q * 0.12, 0), 0.12, 1, 0.08 + q * 0.12);
+    // L'étape suivante, encore à écrire : un anneau ouvert au sommet.
+    b.ring(b.n(0.03), S(0.97, 0), 0.22, 'xz', 1, 0.008, 0.97);
     return b.done();
   },
 };
+
+// ---------- Les silhouettes « aujourd'hui » (Blender → public/models/auj_<id>.chr) ----------
+// Tant qu'un modèle n'est pas chargé, ou s'il manque, la station montre sa forme « futur » en gris papier :
+// jamais d'erreur visible. Le modèle est recentré et mis à l'échelle de la Machine (FIT_W × FIT_H).
+const MODELS = {};
+for (const s of STATIONS) {
+  const id = `auj_${s.id}`;
+  SHAPES[id] = (N) => {
+    const parts = MODELS[id];
+    if (!parts) return SHAPES[s.id](N);
+    const b = builder(N, 300 + s.level * 7 + s.id.length);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const p of parts) for (let i = 0; i < p.v.length; i += 3) { x0 = Math.min(x0, p.v[i]); x1 = Math.max(x1, p.v[i]); y0 = Math.min(y0, p.v[i + 1]); y1 = Math.max(y1, p.v[i + 1]); z0 = Math.min(z0, p.v[i + 2]); z1 = Math.max(z1, p.v[i + 2]); }
+    const sc = Math.min(3.1 / Math.max(1e-3, x1 - x0), 2.85 / Math.max(1e-3, y1 - y0)), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+    const fit = { ...b, put: (x, y, z, t, p) => b.put((x - cx) * sc, (y - cy) * sc, (z - cz) * sc, t, p) };
+    sampleChr(parts, fit, b.n(0.94));
+    return b.done();
+  };
+}
 
 // ---------- Les étapes du voyage : forme, effet, couleurs, place à l'écran ----------
 // pose(v) → [x, y, z, rotX, rotY, rotZ, échelle] ; v = demi-largeur et demi-hauteur visibles, et « mobile ».
@@ -415,25 +495,40 @@ const STOPS = {
   voice: { shape: 'voice', fx: 11, col: ['#2F80FF', '#C49BFF'], fade: 1, halo: 0.35, sway: 0.18, pose: (v) => side(v, 0.06, -0.42, 0.95) },
   wave: { shape: 'wave', fx: 3, col: ['#2F80FF', '#7CF5D0'], fade: 1, halo: 0.35, sway: 0.22, pose: (v) => side(v, 0.12, -0.5, 0.92) },
   radar: { shape: 'radar', fx: 4, col: ['#2F80FF', '#35E08B'], fade: 1, halo: 0.3, sway: 0.12, pose: (v) => side(v, 0.95, -0.25, 0.95) },
-  switch: { shape: 'switch', fx: 5, col: ['#2F80FF', '#FFB347'], fade: 1, halo: 0.3, sway: 0.2, pose: (v) => side(v, 0.1, -0.38, 0.95) },
-  server: { shape: 'server', fx: 6, col: ['#2F80FF', '#35E08B'], fade: 1, halo: 0.35, sway: 0.25, pose: (v) => side(v, 0.24, -0.62, 0.95) },
+  switch: { shape: 'switch', fx: 5, col: ['#2F80FF', '#FFC46B'], fade: 1, halo: 0.3, sway: 0.2, pose: (v) => side(v, 0.1, -0.38, 0.95) },
+  server: { shape: 'server', fx: 6, col: ['#35E08B', '#F4F7FF'], fade: 1, halo: 0.45, sway: 0.16, pose: (v) => side(v, 0.12, -0.3, 0.98) },
   invoice: { shape: 'invoice', fx: 7, col: ['#5C9BFF', '#FFB347'], fade: 1, halo: 0.3, sway: 0.2, pose: (v) => side(v, 0.08, -0.48, 1) },
   film: { shape: 'film', fx: 8, col: ['#2F80FF', '#FF6B6B'], fade: 1, halo: 0.3, sway: 0.2, pose: (v) => side(v, 0.1, -0.35, 0.95) },
+  site: { shape: 'site', fx: 14, col: ['#2F80FF', '#5EC8FF'], fade: 1, halo: 0.32, sway: 0.18, pose: (v) => side(v, 0.06, -0.4, 0.98) },
   dim: { shape: 'terrain', fx: 2, col: ['#2F80FF', '#EAF1FF'], fade: 0.3, halo: 0, sway: 0, pose: () => [0, 0, 0, 0.55, 0, 0.18, 1] },
-  caps: { shape: 'constellation', fx: 9, col: ['#2F80FF', '#EAF1FF'], fade: 0.36, halo: 0.12, sway: 0.25, pose: (v) => (v.mobile ? [0, 0, -1.4, 0, 0, 0, 0.7] : [0, -0.1, -1.2, 0.1, 0, 0, 1.3]) },
-  path: { shape: 'helix', fx: 10, col: ['#2F80FF', '#8AB8FF'], fade: 0.55, halo: 0.15, sway: 0.1, pose: (v) => (v.mobile ? [v.hw * 0.55, 0, -1.2, 0, 0, 0.12, 0.7] : [v.hw * 0.72, 0, -0.4, 0, 0, 0.14, 1]) },
+  path: { shape: 'helix', fx: 10, col: ['#2F80FF', '#8AB8FF'], fade: 0.6, halo: 0.15, sway: 0.1, pose: (v) => (v.mobile ? [v.hw * 0.55, 0, -1.2, 0, 0, 0.12, 0.7] : [v.hw * 0.72, 0, -0.4, 0, 0, 0.14, 1]) },
   end: { shape: 'sphere', fx: 1, col: ['#2F80FF', '#EAF1FF'], fade: 0.9, halo: 1, sway: 0, pose: (v) => [0, 0, 0, 0, 0, 0.18, v.mobile ? 0.77 : 1] },
 };
+// Les étapes « aujourd'hui » : la même place que leur futur, en gris papier et encre de stylo, sans halo, saccadées (old = 1).
+// Tant que le modèle Blender n'est pas là, la forme de secours (le futur en gris) garde l'animation du futur.
+const PAPER = ['#9DA4AE', '#7FA2DC'];
+for (const s of STATIONS) {
+  const id = `auj_${s.id}`, F = STOPS[s.id];
+  STOPS[id] = { shape: id, col: PAPER, fade: 0.86, halo: 0, sway: 0.05, old: 1, pose: F.pose, get fx() { return MODELS[id] ? 20 : F.fx; } };
+}
 
 // ---------- Le voyage ----------
 // Pour chaque passage d'une étape à la suivante : distance parcourue et manière d'y aller
 // (1 : on traverse la forme quittée et la suivante arrive du fond ; 0 : la forme se transforme sur place).
-const LEG = { cloud: [6, 0], name: [0, 0], path: [20, 1] };
+// La bascule « aujourd'hui → futur » se fait sur place (0) ; le passage d'un futur à la station suivante est un saut (1).
+// Après la dernière station, on glisse sans porte vers le fond calme de la salle des agents
+// (le monde y est mis en pause : jamais figé au milieu d'un anneau).
+// Pas de porte vers le contact : on y lit longtemps, et un anneau figé en plein saut resterait à l'écran.
+const LEG = { cloud: [6, 0], name: [0, 0], server: [8, 0], path: [20, 0] };
+STATIONS.forEach((s) => { LEG[`auj_${s.id}`] = [0, 0]; });
 const legOf = (i) => LEG[TRACK[i]] || [14, 1];
 // Abscisse de chaque étape le long de la route.
 const AT = TRACK.map((_, i) => { let d = 0; for (let j = 0; j < i; j++) d += legOf(j)[0]; return d; });
-// Couleur d'une étape pour ses balises et sa porte (le blanc des formes calmes devient bleu clair).
-const tintOf = (key) => (STOPS[key].col[1] === '#EAF1FF' ? '#8AB8FF' : STOPS[key].col[1]);
+// Couleur d'une étape pour ses balises et sa porte : celle de la station (sa promesse), sinon le bleu clair.
+const tintOf = (key) => stationOf(key)?.color || (STOPS[key].col[1] === '#EAF1FF' ? '#8AB8FF' : STOPS[key].col[1]);
+// Courbe « élan vers l'avant » des sauts : on recule un peu pour prendre son élan, on traverse,
+// on dépasse légèrement l'arrivée, puis on se pose. Jamais de mouvement linéaire.
+const elan = (f) => { const s = f * f * (3 - 2 * f); return s - 0.055 * Math.sin(TAU * f) * (1 - Math.abs(2 * f - 1) * 0.35); };
 // Méandres de la route : le décor s'incline comme dans un virage.
 const bend = (x) => 2.4 * Math.sin(x * 0.043) + 1.1 * Math.sin(x * 0.107 + 1.3);
 const bendSlope = (x) => 2.4 * 0.043 * Math.cos(x * 0.043) + 1.1 * 0.107 * Math.cos(x * 0.107 + 1.3);
@@ -466,16 +561,47 @@ uniform float uTime; uniform float uMix; uniform float uSize; uniform float uPix
 uniform float uFlight; uniform float uWarp; uniform float uAspect;
 uniform float uFxA; uniform float uFxB; uniform float uScatter; uniform float uFocus;
 uniform vec3 uMouse; uniform float uMouseStrength; uniform vec3 uPulsePos; uniform float uPulse;
+uniform float uOldA; uniform float uOldB;
 attribute vec3 aTo; attribute vec2 aMetaA; attribute vec2 aMetaB; attribute vec3 aRand;
 varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch; varying vec2 vDir;
 ${NOISE}
 mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
 
-// Chaque forme a sa vie propre : déplacement + éclat.
-vec3 life(vec3 p, vec2 meta, float id, out float glow){
+// Chaque forme a sa vie propre : déplacement + éclat. T est son horloge : fluide pour le futur,
+// échantillonnée à 12 images/s pour le travail manuel d'aujourd'hui (« le manuel saccade, l'automatique coule »).
+vec3 life(vec3 p, vec2 meta, float id, float T, out float glow){
   glow = 0.;
   float tone = meta.x, prm = meta.y;
   if (prm < -.5) { p.y += sin(uTime * .25 + aRand.x * 6.283) * .14; p.x += cos(uTime * .2 + aRand.y * 6.283) * .12; return p; }
+  // La marque d'agent, commune à toutes les formes du futur : l'anneau respire, la barre de regard travaille.
+  if (prm > 39.5) { glow = prm > 40.5 ? .55 + .45 * sin(uTime * 3.1 + p.x * 4.) : .22 + .12 * sin(uTime * 1.2 + aRand.x * 6.283); return p; }
+  if (id > 19.5) {
+    // Le geste manuel, en boucle (silhouettes Blender) : 0 structure · 1–1,99 séquence qui grossit puis recommence
+    // · 2 partie qui vibre (sonnerie) · 3 voyant lent · 4 va-et-vient vertical (tampon, crayon, claquette).
+    glow = .1 + .05 * sin(uTime * .8 + p.y * 3.) + tone * .14;
+    if (prm > 3.5) { float d = smoothstep(.55, 1., .5 + .5 * sin(uTime * 2.3)); p.y -= d * .24; glow += d * .55 * tone; }
+    else if (prm > 2.5) glow = .3 + .5 * (.5 + .5 * sin(uTime * 2.));
+    else if (prm > 1.995) { float ring = step(.5, fract(uTime * .45)); p.x += ring * sin(uTime * 61.) * .022; p.z += ring * cos(uTime * 47.) * .018; glow += ring * .2; }
+    else if (prm > .999) {
+      float s = fract(uTime / 2.6) * 1.18, r = prm - 1., age = s - r;
+      float on = step(0., age);
+      p.y -= (1. - smoothstep(0., .05, age)) * .1;
+      glow = on > .5 ? glow + .12 + smoothstep(.06, 0., age) * .6 : -5.;
+    }
+    return p;
+  }
+  if (id > 13.5) {
+    // Le site qui se construit (cycle d'environ 10 s) : chaque bloc arrive du fond à son tour, l'agent veille.
+    float s = fract(uTime * .1);
+    if (prm > 1.95) glow = .4 + .3 * sin(uTime * 4.);
+    else if (prm > .999) {
+      float r = (prm - 1.) * .72 + .04, on = smoothstep(r, r + .05, s) * (1. - smoothstep(.93, .99, s));
+      p.z -= (1. - on) * .6; p.y -= (1. - on) * .12;
+      glow = on > .01 ? mix(-.65, .3 + tone * .4, on) + smoothstep(r + .05, r, s) * step(r, s) * 1.2 : -5.;
+    }
+    else glow = .16 + .06 * sin(uTime * .8 + p.x * 2.);
+    return p;
+  }
   if (id < .5) {
     glow = .4 + .3 * sin(uTime * 2.2 + aRand.x * 40.);
   } else if (id < 1.5) {
@@ -495,18 +621,18 @@ vec3 life(vec3 p, vec2 meta, float id, out float glow){
     glow = pow(.5 + .5 * sin((prm - uTime * .22) * 12.566), 14.) * 1.9;
     if (tone > .9) glow += .2;
   } else if (id < 6.5) {
-    if (tone > .9) glow = step(.42, fract(uTime * (.35 + prm * 1.3) + prm * 7.)) * 1.5 - .35;
-    else if (tone > .5) glow = pow(fract(prm - uTime * .55), 5.) * 1.7;
-    else glow = .12 * sin(uTime + p.y * 6.);
+    // La constellation : les messages convergent vers l'humain, qui reste calme ; l'anneau extérieur tourne.
+    if (prm > 2.9) { p.xy = rot(-uTime * .05) * p.xy; glow = .16 + .1 * sin(uTime * .9 + aRand.x * 6.283); }
+    else if (prm > 2.4) { float d = fract(uTime * .25); p.xy *= .9 + d * .5; glow = (1. - d) * .9 - .3; }
+    else if (prm > 1.9) glow = .75 + .15 * sin(uTime * 1.3);
+    else if (prm > .999) glow = pow(fract((prm - 1.) * 2. - uTime * .42 + aRand.z * .02), 9.) * 1.8 + .05;
+    else glow = .2 + .14 * sin(uTime * 1.6 + aRand.x * 9.);
   } else if (id < 7.5) {
     if (prm > 1.5) glow = .5 + .45 * sin(uTime * 2.6);
     else { glow = smoothstep(.07, 0., abs(prm - (1. - fract(uTime * .22)))) * 1.7; p.z += sin(uTime * .9 + prm * 3.) * .035; }
   } else if (id < 8.5) {
     if (tone > .9) glow = .35 + .3 * sin(uTime * 2.4);
     else { p.y += sin(prm * 9.42 + uTime * 1.1) * .07; glow = pow(.5 + .5 * sin((prm - uTime * .18) * 18.85), 10.) * 1.3; }
-  } else if (id < 9.5) {
-    p.xy = rot(sin(uTime * .2) * .12) * p.xy;
-    if (tone > .5) glow = .3 + .35 * sin(uTime * 2. + aRand.x * 30.); else glow = pow(fract(prm - uTime * .35), 6.) * 1.6;
   } else if (id > 12.5) {
     // Devis IA (cycle d'environ 11 s) : la demande coule vers la feuille, le devis s'écrit ligne par ligne, le total s'allume,
     // les trois relances partent en éventail, puis la case « Bon pour accord » se coche.
@@ -581,16 +707,20 @@ vec3 life(vec3 p, vec2 meta, float id, out float glow){
     else if (prm > .999) { float d = fract(uTime * .42 - (prm - 1.) * 2.222); p = c + (p - c) * (.62 + d * .8); glow = pow(1. - d, 2.) * 1.7 - .25; }
     else { glow = pow(.5 + .5 * sin((prm - uTime * .24) * 18.85), 10.) * 1.5; if (tone > .9) glow += .3; }
   } else {
+    // La trajectoire : la lumière monte le long du chemin parcouru ; au-delà de 2026, les pointillés scintillent doucement.
     p.xz = rot(uTime * .3) * p.xz;
-    glow = pow(fract(prm * 2. - uTime * .25), 6.) * 1.5; if (tone > .9) glow += .35;
+    if (prm > .7 && tone < .9) glow = .1 + .4 * pow(.5 + .5 * sin(uTime * 1.4 - prm * 30.), 4.);
+    else { glow = pow(fract(prm * 2. - uTime * .25), 6.) * 1.5; if (tone > .9) glow += .35; }
   }
   return p;
 }
 
 void main(){
   float gA; float gB;
-  vec3 a = life(position, aMetaA, uFxA, gA);
-  vec3 b = life(aTo, aMetaB, uFxB, gB);
+  // Horloge saccadée : 12 images par seconde pour le travail manuel.
+  float t12 = floor(uTime * 12.) / 12.;
+  vec3 a = life(position, aMetaA, uFxA, mix(uTime, t12, uOldA), gA);
+  vec3 b = life(aTo, aMetaB, uFxB, mix(uTime, t12, uOldB), gB);
   // Une forme peut cacher un point en renvoyant un éclat < −2 : il devient transparent, sans fantôme.
   float hA = step(-2., gA), hB = step(-2., gB); gA = max(gA, -.7); gB = max(gB, -.7);
   // Chaque point part à son heure : la forme se défait puis se reforme par vagues.
@@ -631,7 +761,7 @@ void main(){
 }`;
 
 const fragment = /* glsl */ `
-uniform vec3 uBaseA; uniform vec3 uAccA; uniform vec3 uBaseB; uniform vec3 uAccB; uniform float uFade;
+uniform vec3 uBaseA; uniform vec3 uAccA; uniform vec3 uBaseB; uniform vec3 uAccB; uniform float uFade; uniform float uWarp;
 varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch; varying vec2 vDir;
 void main(){
   vec2 c = gl_PointCoord - .5, dr = vec2(vDir.x, -vDir.y);
@@ -639,14 +769,18 @@ void main(){
   if (d > .5) discard;
   float a = smoothstep(.5, .05, d) + smoothstep(.16, 0., d) * .5;
   vec3 col = mix(mix(uBaseA, uAccA, vToneA), mix(uBaseB, uAccB, vToneB), vM);
+  // Aberration chromatique radiale pendant un saut : le rouge en tête de la traînée, le bleu en queue.
+  col = max(col + vec3(.55, 0., -.55) * c.y * uWarp * 1.3, 0.);
   gl_FragColor = vec4(col, a * vAlpha * uFade / sqrt(vStretch));
 }`;
+// La vie des formes reçoit son horloge T : dans life(), uTime devient T (fluide ou saccadée selon l'époque de la forme).
+const VERTEX = vertex.replace(/vec3 life\([\s\S]*?\n}\n/, (s) => s.replaceAll('uTime', 'T'));
 
 // Décor : étoiles (genre 0), fil de route (1), balises des étapes (2). Tout est placé par rapport à la caméra
 // et défile quand on avance : uTravel = distance parcourue, uDrift = lente dérive des étoiles au repos.
 const skyVertex = /* glsl */ `
 uniform float uTravel; uniform float uDrift; uniform float uWarp; uniform float uPixel; uniform float uTime; uniform float uFade; uniform float uAspect; uniform float uEnd;
-uniform vec3 uTint;
+uniform vec3 uTint; uniform float uEra;
 attribute vec4 aP; attribute vec4 aS; attribute vec3 aC;
 varying float vA; varying vec2 vDir; varying float vStretch; varying vec3 vCol;
 float bend(float x){ return 2.4 * sin(x * .043) + 1.1 * sin(x * .107 + 1.3); }
@@ -670,6 +804,9 @@ void main(){
   vA *= pow(min(1., ps / floorPs), .65);
   gl_PointSize = vA > .003 ? max(ps, floorPs) * vStretch : 0.;
   vCol = mix(aC, uTint, kind < .5 ? step(.8, aS.y) * .75 : 0.);
+  // Étalonnage : aujourd'hui (uEra = 0), un gris de bureau sous néon froid ; le futur (1), la palette du projet.
+  vCol = mix(vec3(dot(vCol, vec3(.3, .59, .11))) * vec3(.82, .9, 1.04), vCol, uEra);
+  vA *= .72 + .28 * uEra;
 }`;
 const skyFragment = /* glsl */ `
 varying float vA; varying vec2 vDir; varying float vStretch; varying vec3 vCol;
@@ -679,36 +816,36 @@ void main(){
   float r = length(q) * 2.; if (r > 1.) discard;
   gl_FragColor = vec4(vCol, (smoothstep(1., .0, r) * .75 + smoothstep(.45, .0, r) * .5) * vA / sqrt(vStretch));
 }`;
-// Porte : un anneau gradué que l'on traverse entre deux étapes, à la couleur de la destination.
+// Porte : un anneau de lumière fin et net, que l'on traverse entre deux stations, à la couleur (refroidie) de la destination.
+// Volontairement aucun trait rayonnant, aucune graduation, aucun texte autour : rien qui rappelle un cadran ou un soleil.
+// Deux segments d'arc glissent le long de l'anneau (le « chargement » du saut), un peu plus vite à chaque niveau (uSpin).
 const gateFragment = /* glsl */ `
 uniform vec3 uTint; uniform float uA; uniform float uTime; uniform float uR; uniform float uSpin;
 varying vec2 vUv;
 void main(){
   vec2 p = (vUv - .5) * 2. * (uR + .7);
-  float d = length(p), ang = atan(p.y, p.x) + uSpin;
-  float core = exp(-pow((d - uR) * 10., 2.));
-  float glow = exp(-pow((d - uR) * 2.4, 2.)) * .22;
-  float ticks = step(.8, fract(ang * 9.5493 + uTime * .04)) * exp(-pow((d - uR - .3) * 24., 2.)) * .75;
-  float arcs = smoothstep(.2, .35, sin(ang * 3. - uTime * .6)) * exp(-pow((d - uR + .2) * 20., 2.)) * .55;
-  vec3 c = mix(uTint, vec3(1.), core * .4);
-  gl_FragColor = vec4(c, (core + glow + ticks + arcs) * uA);
+  float d = length(p), ang = atan(p.y, p.x) - uSpin;
+  float core = exp(-pow((d - uR) * 14., 2.));
+  float glow = exp(-pow((d - uR) * 3.2, 2.)) * .16;
+  // Deux arcs pleins, posés juste à l'intérieur de l'anneau : des segments, pas des rayons.
+  float seg = smoothstep(.55, .75, sin(ang * 2.)) * exp(-pow((d - uR + .16) * 26., 2.)) * .6;
+  vec3 c = mix(uTint, vec3(1.), core * .35);
+  gl_FragColor = vec4(c, (core + glow + seg) * uA);
 }`;
 // Piste d'arrivée : des cercles qui s'ouvrent sous la dernière étape, et une onde au moment de se poser.
 const padFragment = /* glsl */ `
 uniform vec3 uTint; uniform float uA; uniform float uTime; uniform float uLand;
 varying vec2 vUv;
 void main(){
+  // Un seul anneau fin et immobile (aucune onde qui rayonne), qui s'éclaire un peu à l'arrivée.
   vec2 p = (vUv - .5) * 8.; float d = length(p);
-  float rings = 0.;
-  for (int i = 0; i < 3; i++) { float r = mod(uTime * .42 + float(i) * 1.05, 3.15) + .45; rings += exp(-pow((d - r) * 11., 2.)) * (1. - smoothstep(2.2, 3.5, r)); }
-  float base = exp(-pow((d - 1.6) * 16., 2.)) + exp(-pow((d - 2.5) * 34., 2.)) * .55;
-  float wave = exp(-pow((d - (1. - uLand) * 3.7) * 5., 2.)) * uLand * 3.;
-  float disc = (1. - smoothstep(0., 3.6, d)) * .07;
-  gl_FragColor = vec4(mix(uTint, vec3(1.), .3), (rings * .26 + base * .42 + wave + disc * .7) * uA * (1. - smoothstep(3.4, 3.95, d)));
+  float base = exp(-pow((d - 1.6) * 16., 2.));
+  float disc = (1. - smoothstep(0., 2.4, d)) * .05;
+  gl_FragColor = vec4(mix(uTint, vec3(1.), .3), (base * (.42 + uLand * .5) + disc) * uA * (1. - smoothstep(3.4, 3.95, d)));
 }`;
 const quadVertex = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }';
 
-export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
+export function initWorld(canvas, { reduced = false, onQuality = null, onFrame = null, seed = 0 } = {}) {
   const renderer = new WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
   const mobile = window.matchMedia('(max-width: 760px)').matches;
   let pixel = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 1.75);
@@ -722,7 +859,9 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
   const shapeOf = (key) => shapes[key] || (shapes[key] = SHAPES[key](N));
 
   const geo = new BufferGeometry();
-  const rand = new Float32Array(N * 3); for (let i = 0; i < N * 3; i++) rand[i] = Math.random();
+  // Hasard de chaque point : reproductible quand on fixe une graine (captures automatiques, ?capture).
+  const rng = seed ? mulberry(seed) : Math.random;
+  const rand = new Float32Array(N * 3); for (let i = 0; i < N * 3; i++) rand[i] = rng();
   const attr = { a: new BufferAttribute(new Float32Array(N * 3), 3), b: new BufferAttribute(new Float32Array(N * 3), 3), ma: new BufferAttribute(new Float32Array(N * 2), 2), mb: new BufferAttribute(new Float32Array(N * 2), 2) };
   geo.setAttribute('position', attr.a); geo.setAttribute('aTo', attr.b); geo.setAttribute('aMetaA', attr.ma); geo.setAttribute('aMetaB', attr.mb);
   geo.setAttribute('aRand', new BufferAttribute(rand, 3));
@@ -733,15 +872,16 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
     uFxA: { value: 0 }, uFxB: { value: 0 }, uScatter: { value: 0.55 }, uFocus: { value: 7.2 },
     uMouse: { value: new Vector3(9, 9, 0) }, uMouseStrength: { value: 0 }, uFade: { value: 1 }, uPulsePos: { value: new Vector3(9, 9, 0) }, uPulse: { value: 0 },
     uBaseA: { value: new Color() }, uAccA: { value: new Color() }, uBaseB: { value: new Color() }, uAccB: { value: new Color() },
+    uOldA: { value: 0 }, uOldB: { value: 0 },
   };
-  const mat = new ShaderMaterial({ vertexShader: vertex, fragmentShader: fragment, uniforms, transparent: true, depthWrite: false, blending: AdditiveBlending });
+  const mat = new ShaderMaterial({ vertexShader: VERTEX, fragmentShader: fragment, uniforms, transparent: true, depthWrite: false, blending: AdditiveBlending });
   const points = new Points(geo, mat); points.frustumCulled = false;
   const rig = new Group(); rig.add(points); scene.add(rig);
 
-  // Halo lumineux derrière la forme
+  // Lumière diffuse derrière la forme : une simple nappe froide, sans couronne ni anneau pulsant (rien qui évoque un soleil).
   const haloMat = new ShaderMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, uniforms: { uFade: { value: 0 }, uTime: uniforms.uTime, uTint: { value: new Color('#2F80FF') } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-    fragmentShader: 'uniform float uFade; uniform float uTime; uniform vec3 uTint; varying vec2 vUv; void main(){ float d = length(vUv - .5) * 2.; float core = pow(max(0., 1. - d), 3.2); float ring = smoothstep(.62, .5, d) * smoothstep(.3, .5, d) * .22; vec3 c = mix(uTint * .75, vec3(.75, .86, 1.), core); gl_FragColor = vec4(c, (core * .55 + ring * (.6 + .4 * sin(uTime * .8))) * uFade); }' });
+    fragmentShader: 'uniform float uFade; uniform vec3 uTint; varying vec2 vUv; void main(){ float d = length(vUv - .5) * 2.; float core = pow(max(0., 1. - d), 4.); vec3 c = mix(uTint * .7, vec3(.62, .78, 1.), core * .6); gl_FragColor = vec4(c, core * .42 * uFade); }' });
   const halo = new Mesh(new PlaneGeometry(8.05, 8.05), haloMat); scene.add(halo);
 
   // Braises qui montent
@@ -779,13 +919,18 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
   const skyGeo = new BufferGeometry();
   skyGeo.setAttribute('position', new BufferAttribute(new Float32Array(TN * 3), 3));
   skyGeo.setAttribute('aP', new BufferAttribute(aP, 4)); skyGeo.setAttribute('aS', new BufferAttribute(aS, 4)); skyGeo.setAttribute('aC', new BufferAttribute(aC, 3));
-  const skyU = { uTravel: { value: 0 }, uDrift: { value: 0 }, uWarp: uniforms.uWarp, uPixel: uniforms.uPixel, uTime: uniforms.uTime, uFade: { value: 1 }, uAspect: uniforms.uAspect, uEnd: { value: AT[K.end] }, uTint: { value: new Color('#2F80FF') } };
+  const skyU = { uTravel: { value: 0 }, uDrift: { value: 0 }, uWarp: uniforms.uWarp, uPixel: uniforms.uPixel, uTime: uniforms.uTime, uFade: { value: 1 }, uAspect: uniforms.uAspect, uEnd: { value: AT[K.end] }, uTint: { value: new Color('#2F80FF') }, uEra: { value: 1 } };
   const sky = new Points(skyGeo, new ShaderMaterial({ vertexShader: skyVertex, fragmentShader: skyFragment, uniforms: skyU, transparent: true, depthWrite: false, blending: AdditiveBlending }));
   sky.frustumCulled = false; sky.renderOrder = -2; scene.add(sky);
 
   // Portes : une entre chaque étape où l'on voyage, tirées d'une petite réserve de quatre anneaux.
-  const GATES = [];
-  for (let i = K.sphere; i < K.end; i++) if (legOf(i)[1]) GATES.push({ step: i, at: AT[i] + legOf(i)[0] * 0.88, tint: new Color(tintOf(TRACK[i + 1])), r: i === K.end - 1 ? 4.2 : 3.5, spin: (i * 1.7) % TAU });
+  // Leur couleur est refroidie vers le bleu (jamais un anneau orangé lumineux) ; leurs arcs glissent plus vite à chaque niveau.
+  const GATES = [], COOL = new Color('#7FB2FF');
+  for (let i = K.sphere; i < K.end; i++) {
+    if (!legOf(i)[1]) continue;
+    const dest = stationOf(TRACK[i + 1]), r = i === K.end - 1 ? 4.2 : 3.5;
+    GATES.push({ step: i, at: AT[i] + legOf(i)[0] * 0.88, tint: new Color(tintOf(TRACK[i + 1])).lerp(COOL, 0.45), r, spin: (i * 1.7) % TAU, speed: 0.12 + 0.06 * (dest ? dest.level : 6), label: TRACK[i + 1] });
+  }
   const gatePool = [0, 1, 2, 3].map(() => {
     const m = new ShaderMaterial({ vertexShader: quadVertex, fragmentShader: gateFragment, transparent: true, depthWrite: false, blending: AdditiveBlending,
       uniforms: { uTint: { value: new Color() }, uA: { value: 0 }, uTime: uniforms.uTime, uR: { value: 3.5 }, uSpin: { value: 0 } } });
@@ -819,10 +964,25 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
     attr.a.array.set(sa.pos); attr.b.array.set(sb.pos); attr.ma.array.set(sa.meta); attr.mb.array.set(sb.meta);
     attr.a.needsUpdate = attr.b.needsUpdate = attr.ma.needsUpdate = attr.mb.needsUpdate = true;
     uniforms.uFxA.value = A.fx; uniforms.uFxB.value = B.fx;
+    uniforms.uOldA.value = A.old ? 1 : 0; uniforms.uOldB.value = B.old ? 1 : 0;
     uniforms.uBaseA.value.set(A.col[0]); uniforms.uAccA.value.set(A.col[1]); uniforms.uBaseB.value.set(B.col[0]); uniforms.uAccB.value.set(B.col[1]);
   };
   // Le nom est redessiné dès que la police du site est chargée.
   document.fonts?.load('800 100px "Inter Tight Variable"').then(() => { delete shapes.name; if (pair >= 0 && pair <= K.name) setPair(pair); }).catch(() => {});
+  // Les silhouettes Blender se chargent après l'affichage du contenu, dans l'ordre du voyage (≈ 25 Ko chacune).
+  // À l'arrivée d'un modèle, sa forme est recalculée ; si elle est à l'écran, la paire en cours est rechargée.
+  let alive = true;
+  const loadModels = async () => {
+    for (const s of STATIONS) {
+      const id = `auj_${s.id}`, parts = await loadChr(id);
+      if (!alive) return;
+      if (!parts) continue;
+      MODELS[id] = parts; delete shapes[id];
+      if (pair >= 0 && (TRACK[pair] === id || TRACK[pair + 1] === id)) setPair(pair);
+    }
+  };
+  const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1200));
+  idle(() => loadModels(), { timeout: 2500 });
 
   // ---------- Souris ----------
   const ndc = new Vector2(0, 0), target = new Vector3(9, 9, 0), tmp = new Vector3();
@@ -843,15 +1003,25 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
   // ---------- Boucle ----------
   let running = true, raf = 0, last = performance.now(), time = 0, kT = 0, kS = 0, vel = 0, dim = 1;
   let travel = 0, lastTravel = 0, warp = 0, drift = 0, calm = false, land = 0, landed = false, prevK = 0;
+  // era : étalonnage en cours · kick : les deux ou trois images d'étirement au franchissement d'une porte · seg : passage en cours.
+  let era = 1, kick = 0, seg = { i: 0, f: 0, a: TRACK[0], b: TRACK[1], flight: 0 };
   const tint = new Color(), cA = new Color(), cB = new Color();
   const apply = (k) => {
     const i = Math.min(TRACK.length - 2, Math.max(0, Math.floor(k))), f = Math.min(1, Math.max(0, k - i));
     if (i !== pair) setPair(i);
-    const A = STOPS[TRACK[i]], B = STOPS[TRACK[i + 1]], pa = poses[TRACK[i]], pb = poses[TRACK[i + 1]], e = f * f * (3 - 2 * f), mid = Math.sin(e * Math.PI);
-    uniforms.uMix.value = f;
     // Le voyage : distance parcourue sur la route, et traversée de la forme si ce passage en est une.
+    // Un saut suit la courbe « élan » (recul, traversée, léger dépassement) ; une bascule sur place reste douce.
     const leg = legOf(i), flight = reduced || calm ? 0 : leg[1];
+    const A = STOPS[TRACK[i]], B = STOPS[TRACK[i + 1]], pa = poses[TRACK[i]], pb = poses[TRACK[i + 1]];
+    const e = flight ? elan(f) : f * f * (3 - 2 * f), mid = Math.sin(Math.min(1, Math.max(0, e)) * Math.PI);
+    uniforms.uMix.value = f;
     travel = AT[i] + leg[0] * e;
+    // L'étalonnage : 0 pour le travail manuel d'aujourd'hui, 1 pour le futur automatisé.
+    era = lerp(A.old ? 0 : 1, B.old ? 0 : 1, f * f * (3 - 2 * f));
+    skyU.uEra.value = era;
+    // Le manuel saccade jusque dans le balancement de la sculpture.
+    const tq = era < 0.5 ? Math.floor(time * 12) / 12 : time;
+    seg = { i, f, a: TRACK[i], b: TRACK[i + 1], flight };
     uniforms.uFlight.value = flight;
     // La caméra plonge un peu, s'incline dans le virage et ouvre son champ pendant la traversée.
     const swing = flight * mid;
@@ -862,14 +1032,14 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
     const z = lerp(pa[2], pb[2], e) + mid * 0.9 * (1 - flight);
     rig.position.set(lerp(pa[0], pb[0], e), lerp(pa[1], pb[1], e), z);
-    rig.rotation.set(lerp(pa[3], pb[3], e) + ndc.y * -0.1, lerp(pa[4], pb[4], e) + Math.sin(time * 0.32) * lerp(A.sway, B.sway, e) + ndc.x * 0.16, lerp(pa[5], pb[5], e));
+    rig.rotation.set(lerp(pa[3], pb[3], e) + ndc.y * -0.1, lerp(pa[4], pb[4], e) + Math.sin(tq * 0.32) * lerp(A.sway, B.sway, e) + ndc.x * 0.16, lerp(pa[5], pb[5], e));
     const s = lerp(pa[6], pb[6], e); rig.scale.setScalar(s);
     uniforms.uFade.value = lerp(A.fade, B.fade, e) * dim;
     uniforms.uFocus.value = camera.position.z - z;
     halo.position.set(rig.position.x, rig.position.y, z - 0.7); halo.scale.setScalar(s * (1 + Math.sin(time * 0.6) * 0.04));
     haloMat.uniforms.uFade.value = (lerp(A.halo, B.halo, e) * (1 - mid * (0.5 + flight * 0.45)) + land * 0.6) * dim;
     cA.set(A.col[0]); cB.set(B.col[0]); haloMat.uniforms.uTint.value.copy(tint.copy(cA).lerp(cB, e));
-    eMat.uniforms.uFade.value = (0.35 + uniforms.uFade.value * 0.65) * (1 - warp * 0.7);
+    eMat.uniforms.uFade.value = (0.35 + uniforms.uFade.value * 0.65) * (1 - warp * 0.7) * (0.3 + 0.7 * era);
     // Le décor suit la distance parcourue.
     skyU.uTravel.value = travel; skyU.uDrift.value = drift; skyU.uFade.value = dim * (0.75 + 0.25 * lerp(A.fade, B.fade, e));
     cA.set(tintOf(TRACK[i])); cB.set(tintOf(TRACK[i + 1])); skyU.uTint.value.copy(cA).lerp(cB, e);
@@ -879,9 +1049,9 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
       if (dz < 0.05 || dz > DEEP || g >= gatePool.length) continue;
       const m = gatePool[g++], lit = G.step === i ? Math.min(1, f / 0.25) : 0;
       m.visible = true; m.position.set(bend(G.at) - bend(travel), 0, 7.2 - dz); m.scale.setScalar((G.r + 0.7) * 2);
-      m.material.uniforms.uTint.value.copy(G.tint); m.material.uniforms.uR.value = G.r; m.material.uniforms.uSpin.value = G.spin;
-      // Au repos, la porte suivante n'est qu'un murmure ; elle s'allume quand on part, et le couloir apparaît pendant la traversée.
-      m.material.uniforms.uA.value = Math.min(1, (g === 1 ? 0.035 : 0) + lit * (0.22 + 0.78 * (1 - smoothstep(4, 13, dz))) + 0.3 * swing) * (1 - smoothstep(DEEP * 0.45, DEEP, dz)) * smoothstep(0.3, 2.6, dz) * dim * (calm ? 0.4 : 1);
+      m.material.uniforms.uTint.value.copy(G.tint); m.material.uniforms.uR.value = G.r; m.material.uniforms.uSpin.value = G.spin + time * G.speed;
+      // Au repos, aucune porte n'est visible ; elle s'allume quand on part, et le couloir apparaît pendant la traversée.
+      m.material.uniforms.uA.value = Math.min(1, lit *(0.22 + 0.78 * (1 - smoothstep(4, 13, dz))) + 0.3 * swing) * (1 - smoothstep(DEEP * 0.45, DEEP, dz)) * smoothstep(0.3, 2.6, dz) * dim * (calm ? 0.4 : 1);
     }
     for (; g < gatePool.length; g++) gatePool[g].visible = false;
     const pz = PAD_AT - travel;
@@ -918,15 +1088,20 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
     if (kS < K.end - 0.3) landed = false;
     land = Math.max(0, land - dt * 0.45); prevK = kS;
     apply(kS);
+    // Franchissement d'une porte : un étirement très bref et peu contrasté, jamais un flash.
+    let crossed = null;
+    if (!calm && travel !== lastTravel) for (const G of GATES) if ((lastTravel < G.at && travel >= G.at) || (lastTravel > G.at && travel <= G.at)) { crossed = G; kick = 1; }
+    kick = Math.max(0, kick - dt * 18);
     const speed = Math.abs(travel - lastTravel) / Math.max(dt, 1e-3); lastTravel = travel;
-    warp += ((calm ? 0 : Math.min(1, speed / 26)) - warp) * (1 - Math.exp(-dt * 7)); uniforms.uWarp.value = warp;
+    warp += ((calm ? 0 : Math.min(1, speed / 26)) - warp) * (1 - Math.exp(-dt * 7)); uniforms.uWarp.value = Math.min(1, warp + kick * 0.22);
+    onFrame?.({ k: kS, era, warp, crossed: crossed ? crossed.label : null, ...seg });
     uniforms.uVel.value += (vel - uniforms.uVel.value) * 0.14; vel *= 0.9;
     pulse = Math.max(0, pulse - dt * 0.85); uniforms.uPulse.value = pulse;
     uniforms.uMouse.value.lerp(target, 0.12); strength *= 0.985;
     uniforms.uMouseStrength.value += (strength - uniforms.uMouseStrength.value) * 0.1;
     renderer.render(scene, camera);
   };
-  const still = () => { apply(kS); renderer.render(scene, camera); };
+  const still = () => { apply(kS); renderer.render(scene, camera); onFrame?.({ k: kS, era, warp: 0, crossed: null, ...seg }); };
   apply(0);
   if (reduced) still(); else raf = requestAnimationFrame(frame);
 
@@ -943,6 +1118,14 @@ export function initWorld(canvas, { reduced = false, onQuality = null } = {}) {
     get level() { return level; },
     play() { running = true; last = performance.now(); },
     pause() { running = false; },
-    destroy() { cancelAnimationFrame(raf); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onDown); window.removeEventListener('deviceorientation', onTilt); window.removeEventListener('resize', resize); renderer.dispose(); },
+    get era() { return era; },
+    // Libère tout : écouteurs, géométries, matériaux, puis le moteur de rendu.
+    destroy() {
+      alive = false; cancelAnimationFrame(raf);
+      window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onDown); window.removeEventListener('deviceorientation', onTilt); window.removeEventListener('resize', resize);
+      scene.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
+      for (const k in shapes) delete shapes[k];
+      renderer.dispose();
+    },
   };
 }

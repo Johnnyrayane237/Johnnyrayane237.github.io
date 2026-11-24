@@ -43,6 +43,11 @@ function createSound() {
     hover: () => blip(1400, 2100, 0.07, 0.05),
     click: () => { blip(220, 60, 0.28, 0.35, 'triangle'); blip(900, 1800, 0.12, 0.05); },
     open: () => blip(140, 520, 0.5, 0.2, 'sine'),
+    // Saut vers la station suivante : une montée douce, puis un léger « posé » à l'arrivée.
+    jump: () => { blip(90, 420, 0.9, 0.16, 'sine'); blip(600, 1400, 0.6, 0.03, 'triangle'); },
+    land: () => blip(520, 330, 0.35, 0.07, 'sine'),
+    // Validation humaine dans la salle des agents : deux notes claires.
+    approve: () => { blip(660, 660, 0.18, 0.08, 'sine'); setTimeout(() => blip(990, 990, 0.3, 0.07, 'sine'), 120); },
     velocity(v) { if (on && filter) filter.frequency.setTargetAtTime(320 + Math.min(Math.abs(v), 4000) * 0.35, ctx.currentTime, 0.2); },
   };
 }
@@ -87,12 +92,15 @@ export function initExtras({ lenis, hero, reduced, fine, lang, sections, routeSt
   const setFx = (off, save = true) => { root.classList.toggle('fx-off', off); if (hero) hero.calm = off; fxBtn.setAttribute('aria-pressed', off); fxBtn.lastElementChild.textContent = off ? S.fxOff : S.fxOn; if (save) store.set('fx', off ? 'off' : 'on'); };
   fxBtn.addEventListener('click', () => setFx(!root.classList.contains('fx-off')));
   if (store.get('fx') === 'off') setFx(true);
-  // Version légère automatique : si l'appareil peine vraiment, le grain et les lueurs s'éteignent (sans rien enregistrer).
+  // Version légère automatique : si l'appareil peine vraiment, les lueurs s'éteignent (sans rien enregistrer).
   window.addEventListener('world:slow', () => { if (!root.classList.contains('fx-off')) root.classList.add('fx-lite'); });
 
   // Sons d'interface
   document.addEventListener('pointerover', (e) => { const t = e.target.closest('a, button, .row, .clip'); if (t && t !== document._lastHover) { document._lastHover = t; sound.hover(); } if (!t) document._lastHover = null; });
   document.addEventListener('click', (e) => { if (e.target.closest('.row, .clip')) sound.open(); else if (e.target.closest('a, button')) sound.click(); });
+  window.addEventListener('saut:depart', () => sound.jump());
+  window.addEventListener('saut:arrivee', () => sound.land());
+  window.addEventListener('agents:approve', () => sound.approve());
 
   // Repère du voyage : la route parcourue, une balise par étape, et le visiteur qui avance avec le défilement.
   if (routeStops) {
@@ -147,7 +155,7 @@ export function initExtras({ lenis, hero, reduced, fine, lang, sections, routeSt
   $$('.label').forEach((el) => ScrollTrigger.create({ trigger: el, start: 'top 92%', once: true, onEnter: () => scramble(el, 1.1) }));
 
   // Inclinaison selon la vitesse de défilement
-  const skewTargets = $$('#workList, #mdmPages, #caps, .stats');
+  const skewTargets = $$('#atSites, #mdmPages, #tools');
   const skew = { v: 0 };
   const apply = gsap.quickSetter(skewTargets, 'skewY', 'deg');
   ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => {
