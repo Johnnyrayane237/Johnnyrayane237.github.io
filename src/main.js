@@ -20,10 +20,15 @@ import { initCinema } from './cinema.js';
 gsap.registerPlugin(ScrollTrigger);
 // Les sections épinglées (voyage, salle des agents) allongent la page. Pour que chaque animation située
 // plus bas se déclenche au bon endroit, les déclencheurs sont recalculés dans l'ordre de la page.
+// Un conteneur passe après ce qu'il contient : son étendue dépend des épinglages placés à l'intérieur
+// (sinon le repère de section « Voyage » s'arrêterait au début du voyage épinglé).
 ScrollTrigger.addEventListener('refreshInit', () => ScrollTrigger.sort((a, b) => {
   const A = a.trigger, B = b.trigger;
   if (!A || !B || A === B) return A === B ? 0 : A ? 1 : -1;
-  return A.compareDocumentPosition(B) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+  const pos = A.compareDocumentPosition(B);
+  if (pos & Node.DOCUMENT_POSITION_CONTAINED_BY) return 1;
+  if (pos & Node.DOCUMENT_POSITION_CONTAINS) return -1;
+  return pos & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
 }));
 
 const $ = (s, r = document) => r.querySelector(s);
