@@ -15,6 +15,7 @@ import { renderFeatures } from './hood-render.js';
 import { STATIONS, shownStatus } from './stations.js';
 import { initChrono } from './chrono.js';
 import { initAgentRoom } from './agents.js';
+import { initCinema } from './cinema.js';
 
 gsap.registerPlugin(ScrollTrigger);
 // Les sections épinglées (voyage, salle des agents) allongent la page. Pour que chaque animation située
@@ -329,6 +330,25 @@ if (!reduced) {
   stopST.contact = seg({ trigger: '#contact', start: 'top 80%', end: 'bottom bottom' });
 }
 
+// ---------- La couche cinéma ----------
+// Le metteur en scène lit où se trouve le milieu de l'écran et choisit la scène : le prologue, le futur de la
+// station en cours (l'« aujourd'hui » reste sans plan), la salle des agents, l'épilogue. Lu toutes les 8 images.
+// Les dix stations partagent le plan « flux », chacune dans sa couleur.
+const cineScenes = { prologue: { plan: 'cartes', tint: '#2F80FF' }, epilogue: { plan: 'horizon', tint: '#2F80FF' } };
+STATIONS.forEach((s) => { cineScenes[s.id] = { plan: 'flux', tint: s.color }; });
+const cine = initCinema({ mount: $('#cine'), scenes: cineScenes, reduced, mobile });
+const cineAt = () => {
+  const c = window.innerHeight / 2;
+  const inside = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.top <= c && r.bottom >= c; };
+  if (inside($('#top'))) return 'prologue';
+  if (inside($('#horizon'))) return curF && STATIONS[curI] ? STATIONS[curI].id : null;
+  if (inside(agEl)) return 'agents';
+  if (inside($('#contact'))) return 'epilogue';
+  return null;
+};
+let cineTick = 0;
+gsap.ticker.add(() => { if (++cineTick % 8) return; cine.set(cineAt()); });
+
 // Les étapes du voyage, dans l'ordre de la page : nom, couleur et position de défilement où l'on y arrive.
 function routeStops() {
   const max = ScrollTrigger.maxScroll(window);
@@ -531,7 +551,7 @@ if (import.meta.env.DEV) {
   window.__dbg = { segs, hero, ScrollTrigger, K, lenis, go,
     // __dbg.goto('radar', 0.6) : se placer dans le futur d'une station (f < 0,3 : son « aujourd'hui »).
     goto: (id, f = 0.6) => go(stationY(STATIONS.findIndex((s) => s.id === id), f)),
-    room, agST };
+    room, agST, cine };
 }
 window.addEventListener('load', () => ScrollTrigger.refresh());
 document.fonts?.ready.then(() => ScrollTrigger.refresh());

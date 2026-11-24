@@ -219,6 +219,25 @@
 .quick__trades b { font-size: 1rem; }
 .quick__trades span { color: var(--muted); font-size: .82rem; line-height: 1.3; }
 
+/* ---------- La couche cinéma (plans rendus dans Blender) ----------
+   Derrière la Machine : le plan s'ouvre en volet depuis la droite (le côté de la sculpture) en se posant,
+   puis un voile sombre garde le texte lisible à gauche et en bas. Aucun flash : tout passe par des fondus.
+   Les plans sont en noir et blanc : le calque de teinte (mode « couleur ») leur donne la couleur de la scène. */
+.cine { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.cine video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.08); clip-path: inset(0 0 0 100%); filter: saturate(.92) contrast(1.06) brightness(.72); transition: opacity 1.2s var(--ease), clip-path 1.4s var(--ease), transform 3s var(--ease); }
+.cine video.is-on { opacity: .62; clip-path: inset(0 0 0 0); transform: scale(1); }
+.cine::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s;
+  background: linear-gradient(90deg, rgba(5, 6, 10, .9) 0%, rgba(5, 6, 10, .52) 38%, rgba(5, 6, 10, .08) 70%, rgba(5, 6, 10, .3) 100%),
+              linear-gradient(0deg, rgba(5, 6, 10, .85), transparent 30%, transparent 75%, rgba(5, 6, 10, .6)); }
+.cine.has-scene::after { opacity: 1; }
+.cine__tint { position: absolute; inset: 0; background-color: #2F80FF; mix-blend-mode: color; opacity: 0; transition: opacity 1.2s, background-color 1.4s var(--ease); }
+.cine.has-scene .cine__tint { opacity: .9; }
+.fx-off .cine, .fx-lite .cine { display: none; }
+/* Mouvement réduit : l'image fixe du plan, en simple fondu, sans volet ni zoom. */
+@media (prefers-reduced-motion: reduce) {
+  .cine video, .cine video.is-on { transform: none; clip-path: none; transition: opacity .6s; }
+}
+
 /* ---------- Tailles d'écran ---------- */
 @media (max-width: 1080px) {
   .hz-slide { width: min(58%, 760px); }
