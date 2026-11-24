@@ -28,7 +28,8 @@ Aucune année n'est affichée dans le voyage. Aucun effet ancien : ni cadran, ni
 - Le plan s'ouvre en volet depuis le côté de la sculpture ; un voile sombre garde le texte lisible. Aucun flash.
 - Pas de plan pendant l'« aujourd'hui » d'une tâche : il reste gris et silencieux.
 - Se retire tout seul avec « Réduire les effets », sur un appareil qui peine (allègement automatique) et en mode économie de données. Mouvement réduit : image fixe, en simple fondu.
-- Poids : 610 Ko pour les trois plans sur ordinateur, 245 Ko sur téléphone (versions plus légères). Un plan ne se charge que quand on arrive à son moment.
+- Le flux est volontairement épuré : quelques traînées de lumière floues qui passent au loin, sans fils ni anneaux (la première version chargeait trop les stations).
+- Poids : 383 Ko pour les trois plans sur ordinateur, 144 Ko sur téléphone (versions plus légères). Un plan ne se charge que quand on arrive à son moment.
 - Pas de mention « IA » : ces plans ne sont pas générés par IA, ils viennent de nos scripts Blender.
 - Refaire un plan : `blender -b --factory-startup --python blender/scripts/cinema_plans.py -- <plan> boucle <dossier>`, puis `blender/scripts/cinema_encoder.ps1 -Images <dossier>`.
 

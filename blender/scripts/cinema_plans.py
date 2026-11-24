@@ -2,7 +2,7 @@
 # Le site pose la couleur lui-même (la couleur de chaque station, ou le bleu froid de la marque).
 #
 #   cartes   le prologue : des cartes de verre flottent dans la brume, chacune porte quelques lignes de tâche
-#   flux     le futur des stations : des paquets de lumière filent sur des rails, à travers de fins anneaux
+#   flux     le futur des stations : quelques traînées de lumière floues qui passent au loin
 #   horizon  l'épilogue : un sol miroir semé de repères, une bande de lumière plate tout au fond
 #
 # La caméra glisse de côté, jamais vers un point de fuite : aucune ligne ne rayonne depuis le centre.
@@ -181,37 +181,27 @@ TUILES = range(-12, 24)   # copies de la tuile de P mètres, de quoi couvrir le 
 
 # ---------- Plan « flux » : le futur des stations ----------
 def plan_flux():
+    # Version épurée : ni fils ni anneaux (trop chargé derrière la sculpture et le tableau de bord).
+    # Seulement quelques traînées de lumière qui passent au loin, floues, bien espacées.
     monde(0.006)
     sol()
-    lampe('haut', (6, 6, 9), (0, 0, 0), 320, 30)
-    rail = lumiere('rail', 1.4)
-    anneau = lumiere('anneau', 2.2)
-    paquet = lumiere('paquet', 16.0)
-    me_rail = maillage(bpy.ops.mesh.primitive_cylinder_add, 'rail', rail, radius=0.004, depth=1, vertices=8)
-    me_anneau = maillage(bpy.ops.mesh.primitive_torus_add, 'anneau', anneau, major_radius=0.24, minor_radius=0.006,
-                         major_segments=64, minor_segments=8)
+    lampe('haut', (6, 6, 9), (0, 0, 0), 260, 30)
+    paquet = lumiere('paquet', 22.0)
     me_paquet = maillage(bpy.ops.mesh.primitive_uv_sphere_add, 'paquet', paquet, radius=1, segments=24, ring_count=12)
-    # Rails : profondeur, hauteur, nombre de P parcourus par les paquets pendant la boucle, paquets par tuile.
-    rails = [(0.0, 0.7, 5, 1), (1.3, 1.65, 7, 1), (3.0, 0.35, 4, 2), (5.6, 1.15, 6, 1), (9.0, 2.3, 5, 2)]
-    for i, (y, z, avance, par_tuile) in enumerate(rails):
-        poser(me_rail, (0, y, z), rot=(0, math.radians(90), 0), echelle=(1, 1, 300))
-        # Les anneaux : des portes fixes, une par tuile, sur les rails du fond seulement
-        # (de près, vus par la tranche, ils barreraient l'image).
-        decal = rnd.uniform(0, P)
-        for k in (TUILES if i >= 2 else ()):
-            poser(me_anneau, (k * P + decal, y, z), rot=(0, math.radians(90), 0))
-        # Les paquets : enfants d'un vide qui avance d'un nombre entier de P pendant la boucle.
+    # Couloirs invisibles : profondeur, hauteur, P parcourus pendant la boucle, motif répété tous les q × P.
+    # Une seule traînée par motif ; (avance − 1) est un multiple de q, donc l'image L+1 retombe sur l'image 1.
+    couloirs = [(2.0, 0.6, 4, 3), (4.5, 1.5, 5, 2), (7.0, 0.4, 7, 3), (10.0, 2.0, 3, 2), (14.0, 1.0, 5, 2), (19.0, 2.6, 4, 3)]
+    for y, z, avance, q in couloirs:
         porteur = vide(f'porteur_{y}')
         piloter(porteur, 'location', 0, f'(frame - 1) * {avance * P} / {L}')
-        places = sorted(rnd.uniform(0, P) for _ in range(par_tuile))
-        for k in range(min(TUILES) - avance - 2, max(TUILES) + 1):
-            for x in places:
-                poser(me_paquet, (k * P + x, y, z), echelle=(0.34, 0.028, 0.028), parent=porteur)
+        x0, long = rnd.uniform(0, q * P), rnd.uniform(0.3, 0.55)
+        for j in range((min(TUILES) - avance - 2) // q - 1, max(TUILES) // q + 2):
+            poser(me_paquet, (j * q * P + x0, y, z), echelle=(long, 0.03, 0.03), parent=porteur)
     S.render.use_motion_blur = True
-    regler(S.render, motion_blur_shutter=0.5)
-    regler(E, motion_blur_steps=1, motion_blur_shutter=0.5)
-    # Travelling de trois-quarts le long des rails : ils filent vers la droite, hors champ.
-    camera((0, -4.6, 1.0), (85, 0, -30), 32, 5.8, 2.0)
+    regler(S.render, motion_blur_shutter=1.0)
+    regler(E, motion_blur_steps=1, motion_blur_shutter=1.0)
+    # Mise au point tout près : au loin, les traînées deviennent de douces lueurs.
+    camera((0, -4.6, 1.0), (85, 0, -30), 32, 2.6, 1.2)
 
 
 # ---------- Plan « cartes » : le prologue ----------
