@@ -585,6 +585,7 @@ uniform float uOldA; uniform float uOldB;
 // Mise en lumière d'une partie de la sculpture (un chiffre clé survolé) : points dont prm ∈ [x, y] et ton ∈ [z, w],
 // avec une intensité propre à chacune des deux formes en cours (uHiAB.x pour A, .y pour B).
 uniform vec4 uHi; uniform vec2 uHiAB;
+uniform float uLife;
 attribute vec3 aTo; attribute vec2 aMetaA; attribute vec2 aMetaB; attribute vec3 aRand;
 varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch; varying vec2 vDir;
 ${NOISE}
@@ -783,10 +784,11 @@ vec3 life(vec3 p, vec2 meta, float id, float T, out float glow){
 
 void main(){
   float gA; float gB;
-  // Horloge du travail manuel : ralentie, jamais saccadée.
-  float tSlow = uTime * .6;
-  vec3 a = life(position, aMetaA, uFxA, mix(uTime, tSlow, uOldA), gA);
-  vec3 b = life(aTo, aMetaB, uFxB, mix(uTime, tSlow, uOldB), gB);
+  // L'horloge de la vie des formes (uLife) : elle recule quand on remonte la page — le geste se rembobine —
+  // et ralentit la nuit à Paris. Celle du travail manuel est encore ralentie, jamais saccadée.
+  float tSlow = uLife * .6;
+  vec3 a = life(position, aMetaA, uFxA, mix(uLife, tSlow, uOldA), gA);
+  vec3 b = life(aTo, aMetaB, uFxB, mix(uLife, tSlow, uOldB), gB);
   // Une forme peut cacher un point en renvoyant un éclat < −2 : il devient transparent, sans fantôme.
   float hA = step(-2., gA), hB = step(-2., gB); gA = max(gA, -.7); gB = max(gB, -.7);
   if (uHiAB.x + uHiAB.y > .001) { gA = max(lit(gA, aMetaA, uHiAB.x), -.7); gB = max(lit(gB, aMetaB, uHiAB.y), -.7); }
@@ -828,7 +830,7 @@ void main(){
 }`;
 
 const fragment = /* glsl */ `
-uniform vec3 uBaseA; uniform vec3 uAccA; uniform vec3 uBaseB; uniform vec3 uAccB; uniform float uFade; uniform float uWarp;
+uniform vec3 uBaseA; uniform vec3 uAccA; uniform vec3 uBaseB; uniform vec3 uAccB; uniform float uFade; uniform float uWarp; uniform float uNight;
 varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch; varying vec2 vDir;
 void main(){
   vec2 c = gl_PointCoord - .5, dr = vec2(vDir.x, -vDir.y);
@@ -836,6 +838,8 @@ void main(){
   if (d > .5) discard;
   float a = smoothstep(.5, .05, d) + smoothstep(.16, 0., d) * .5;
   vec3 col = mix(mix(uBaseA, uAccA, vToneA), mix(uBaseB, uAccB, vToneB), vM);
+  // La nuit à Paris, la palette refroidit : un peu moins saturée, tirée vers le bleu.
+  col = mix(col, vec3(dot(col, vec3(.3, .59, .11))) * vec3(.78, .9, 1.18), uNight * .38);
   // Aberration chromatique radiale pendant un saut : le rouge en tête de la traînée, le bleu en queue.
   col = max(col + vec3(.55, 0., -.55) * c.y * uWarp * 1.3, 0.);
   gl_FragColor = vec4(col, a * vAlpha * uFade / sqrt(vStretch));
@@ -913,6 +917,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     uBaseA: { value: new Color() }, uAccA: { value: new Color() }, uBaseB: { value: new Color() }, uAccB: { value: new Color() },
     uOldA: { value: 0 }, uOldB: { value: 0 },
     uHi: { value: new Vector4(0, 0, -1, 2) }, uHiAB: { value: new Vector2(0, 0) },
+    uLife: { value: 0 }, uNight: { value: 0 },
   };
   const mat = new ShaderMaterial({ vertexShader: VERTEX, fragmentShader: fragment, uniforms, transparent: true, depthWrite: false, blending: AdditiveBlending });
   const points = new Points(geo, mat); points.frustumCulled = false;
@@ -1039,6 +1044,19 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
   let era = 1, kick = 0, seg = { i: 0, f: 0, a: TRACK[0], b: TRACK[1], flight: 0 };
   // Mise en lumière : la forme visée (clé de la station), son intensité actuelle et celle visée.
   let hiKey = null, hiAmt = 0, hiGoal = 0;
+  // Horloge de la vie des formes : flowT = vitesse de défilement signée (négative quand on remonte), lissée en flowS.
+  let life = 0, flowT = 0, flowS = 0;
+  // L'heure de Paris : 0 le jour, 1 la nuit (22 h – 6 h), avec deux heures de transition au crépuscule et à l'aube.
+  const nightAt = (h) => (h >= 22 || h < 6 ? 1 : h >= 20 ? (h - 20) / 2 : h < 8 ? 1 - (h - 6) / 2 : 0);
+  const parisHour = () => {
+    try {
+      const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+      return +p.hour + +p.minute / 60;
+    } catch { return 12; }
+  };
+  let night = nightAt(parisHour());
+  const nightTimer = setInterval(() => { night = nightAt(parisHour()); uniforms.uNight.value = night; if (reduced) still(); }, 60000);
+  uniforms.uNight.value = night;
   const tint = new Color(), cA = new Color(), cB = new Color();
   const apply = (k) => {
     const i = Math.min(TRACK.length - 2, Math.max(0, Math.floor(k))), f = Math.min(1, Math.max(0, k - i));
@@ -1096,6 +1114,10 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     const raw = (now - last) / 1000, dt = Math.min(raw, 0.05); last = now;
     if (!running) return;
     time += dt; uniforms.uTime.value = time;
+    // Remonter la page rembobine le geste des sculptures ; descendre l'accélère un peu ; la nuit, tout ralentit.
+    flowT *= Math.exp(-dt * 2.5); flowS += (flowT - flowS) * (1 - Math.exp(-dt * 8));
+    const pace = (flowS < 0 ? 1 + flowS * 2.6 : 1 + flowS * 0.35) * (1 - 0.3 * night);
+    life += dt * Math.max(-2.2, Math.min(2, pace)); uniforms.uLife.value = life;
     warm += dt;
     if (warm > 2.5 && raw < 0.25 && level < 3) { acc += raw; frames++; if (frames >= 80) { if (acc / frames > 1 / 27) lighten(); acc = 0; frames = 0; } }
     // Pendant une traversée, la caméra prend son temps : le vol dure à peu près une seconde, même si l'on défile vite.
@@ -1140,6 +1162,12 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     // Effets réduits : plus de traversée ni de traînées, le décor reste immobile.
     set calm(v) { calm = !!v; if (reduced) still(); },
     set velocity(v) { vel = Math.max(vel, v); },
+    // Vitesse de défilement signée (≈ −2,5 à 2,5) : négative, elle rembobine la vie des formes.
+    set flow(v) { flowT = Math.max(-2.5, Math.min(2.5, v)); },
+    // La nuit à Paris (0 à 1) ; forçable pour les essais avec ?nuit=1 dans l'adresse.
+    get night() { return night; },
+    get life() { return life; },
+    set night(v) { night = Math.max(0, Math.min(1, v)); uniforms.uNight.value = night; if (reduced) still(); },
     // Un chiffre clé désigne sa partie de la sculpture : highlight('radar', [prmMin, prmMax, tonMin, tonMax]) ; null l'éteint.
     highlight(key, r) {
       if (key && r) { if (hiKey !== key) hiAmt = 0; hiKey = key; uniforms.uHi.value.set(r[0], r[1], r[2] ?? -1, r[3] ?? 2); hiGoal = 1; } else hiGoal = 0;
@@ -1156,7 +1184,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     get era() { return era; },
     // Libère tout : écouteurs, géométries, matériaux, puis le moteur de rendu.
     destroy() {
-      alive = false; cancelAnimationFrame(raf);
+      alive = false; cancelAnimationFrame(raf); clearInterval(nightTimer);
       window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onDown); window.removeEventListener('deviceorientation', onTilt); window.removeEventListener('resize', resize);
       scene.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
       for (const k in shapes) delete shapes[k];

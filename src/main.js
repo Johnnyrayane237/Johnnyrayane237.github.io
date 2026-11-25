@@ -170,6 +170,8 @@ try {
   hero = initWorld($('#gl'), { reduced, seed: params.has('capture') ? 7 : 0, onFrame: feedChrono,
     onQuality: (lvl) => { if (lvl >= 2) window.dispatchEvent(new CustomEvent('world:slow')); } });
 } catch { $('#gl').remove(); }
+// Pour les essais : ?nuit=1 force la nuit à Paris, ?nuit=0 le jour.
+if (hero && params.has('nuit')) hero.night = +params.get('nuit') || 0;
 
 // ---------- Le voyage : chaque portion de page fait avancer le monde d'une étape ----------
 const segs = [];
@@ -245,7 +247,7 @@ if (!reduced) {
   const track = $('#marquee'); track.innerHTML += track.innerHTML;
   let mx = 0, speed = 1;
   // « end: max » doit être écrit en toutes lettres : sinon la fin est calculée avant l'allongement des sections épinglées.
-  ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => { const v = s.getVelocity(); speed = 1 + Math.min(Math.abs(v) / 220, 9) * (s.direction || 1); if (hero) hero.velocity = Math.min(Math.abs(v) / 3200, 1); } });
+  ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => { const v = s.getVelocity(); speed = 1 + Math.min(Math.abs(v) / 220, 9) * (s.direction || 1); if (hero) { hero.velocity = Math.min(Math.abs(v) / 3200, 1); hero.flow = v / 1000; } } });
   // Le monde suit le défilement à chaque image, quel que soit l'ordre de mise à jour des sections.
   gsap.ticker.add(syncWorld);
   gsap.ticker.add(() => { mx -= speed * 0.9; speed += (1 - speed) * 0.06; const half = track.scrollWidth / 2; if (mx <= -half) mx += half; if (mx > 0) mx -= half; track.style.transform = `translate3d(${mx}px,0,0)`; });
@@ -306,9 +308,25 @@ $$('#hzStage .slide__metrics > div').forEach((el) => {
   el.addEventListener('click', () => { if (lastPtr !== 'touch') return; litOn(el); clearTimeout(litTimer); litTimer = setTimeout(litOff, 2600); });
 });
 
+// Mémoire du site : les stations déjà vues (phase « futur ») restent marquées sur le rail, et à la visite suivante
+// un lien discret en haut de page propose de reprendre là où l'on s'était arrêté. Rien ne sort du navigateur.
+const memo = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignoré */ } } };
+const viewed = new Set((memo.get('hz:vus') || '').split(',').filter((x) => STATIONS.some((s) => s.id === x)));
+const lastVisit = STATIONS.findIndex((s) => s.id === memo.get('hz:fin'));
+const markSeen = () => railBtns.forEach((b, j) => b.classList.toggle('is-seen', viewed.has(STATIONS[j].id)));
+markSeen();
+let furthest = lastVisit;
+const remember = (i) => {
+  const id = STATIONS[i].id;
+  // La reprise vise la station la plus avancée atteinte : remonter en haut de page ne l'efface pas.
+  if (i > furthest) { furthest = i; memo.set('hz:fin', id); }
+  if (!viewed.has(id)) { viewed.add(id); memo.set('hz:vus', [...viewed].join(',')); markSeen(); }
+};
+
 function setStation(i, future) {
   if (i === curI && future === curF) return;
   litOff();
+  if (future) remember(i);
   const changed = i !== curI, dir = i > curI ? 1 : -1, prev = slides[curI], next = slides[i];
   curI = i; curF = future;
   railBtns.forEach((b, j) => { b.classList.toggle('is-active', j === i); b.classList.toggle('is-done', j < i); b.setAttribute('aria-current', j === i ? 'true' : 'false'); });
@@ -370,6 +388,18 @@ $('#hzRail').addEventListener('click', (e) => {
   const y = stationY(+b.dataset.go);
   if (lenis) lenis.scrollTo(y, { duration: 1.4 }); else window.scrollTo(0, y);
 });
+// « Reprendre · 06 JobHunter → » : seulement si la visite précédente était allée au-delà de la première station.
+const resume = $('#resume');
+if (lastVisit >= 1) {
+  resume.textContent = `${T['hero.resume']} · ${pad(lastVisit + 1)} ${projOf(STATIONS[lastVisit]).short} →`;
+  resume.style.setProperty('--c', STATIONS[lastVisit].color);
+  resume.hidden = false;
+  resume.addEventListener('click', (e) => {
+    e.preventDefault();
+    const y = stationY(lastVisit);
+    if (lenis) lenis.scrollTo(y, { duration: 2.4 }); else window.scrollTo(0, y);
+  });
+}
 
 // ---------- La salle des agents ----------
 // Son code et le chargeur de modèles 3D forment un morceau à part, téléchargé seulement à l'approche de la salle
@@ -666,7 +696,8 @@ $('#copyBtn').addEventListener('click', async () => {
 });
 // L'heure du pied de page : celle de Paris, en avance du temps gagné pendant les sauts du voyage.
 const clock = $('#clock'), fmt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const tick = () => { clock.textContent = fmt.format(new Date(Date.now() + (chrono?.skew || 0))); }; tick(); setInterval(tick, 1000);
+const nightNote = $('#nightNote');
+const tick = () => { clock.textContent = fmt.format(new Date(Date.now() + (chrono?.skew || 0))); if (hero) nightNote.hidden = hero.night < 0.5; }; tick(); setInterval(tick, 1000);
 document.addEventListener('visibilitychange', () => { if (!hero) return; if (document.hidden) hero.pause(); else hero.play(); });
 if (import.meta.env.DEV) {
   const go = (y) => (lenis ? lenis.scrollTo(y, { immediate: true, force: true }) : window.scrollTo(0, y));
