@@ -241,11 +241,11 @@ main, .header { position: relative; z-index: 2; }
 /* En tête de fiche : le titre à gauche, l'objet de verre à droite, dans sa propre colonne (jamais derrière le texte). */
 .case__head { display: grid; grid-template-columns: minmax(0, 1fr) clamp(220px, 27vw, 400px); gap: clamp(16px, 3vw, 48px); align-items: center; }
 .case__head .case__title { font-size: clamp(2.6rem, 7vw, 7.6rem); overflow-wrap: anywhere; }
-.case__glass { position: relative; aspect-ratio: 1; touch-action: pan-y; }
+.case__glass { position: relative; aspect-ratio: 1; touch-action: pan-y; margin-bottom: 22px; }
 .case__glass .glass__gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; opacity: 0; transition: opacity .9s var(--ease); }
 .case__glass .glass__gl:active { cursor: grabbing; }
 .case__glass.is-ready .glass__gl { opacity: 1; }
-.case__glass-hint { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); pointer-events: none; opacity: 0; transition: opacity .6s .5s; }
+.case__glass-hint { position: absolute; left: 0; right: 0; bottom: -22px; text-align: center; font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); pointer-events: none; opacity: 0; transition: opacity .6s .5s; }
 .case__glass.is-ready .case__glass-hint { opacity: .8; }
 @media (max-width: 760px) {
   .case__head { grid-template-columns: 1fr; }

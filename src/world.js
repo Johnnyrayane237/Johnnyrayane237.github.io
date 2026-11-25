@@ -1085,7 +1085,10 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     const z = lerp(pa[2], pb[2], e) + mid * 0.9 * (1 - flight);
     rig.position.set(lerp(pa[0], pb[0], e), lerp(pa[1], pb[1], e), z);
     rig.rotation.set(lerp(pa[3], pb[3], e) + ndc.y * -0.1, lerp(pa[4], pb[4], e) + Math.sin(time * 0.32) * lerp(A.sway, B.sway, e) + ndc.x * 0.16, lerp(pa[5], pb[5], e));
-    const s = lerp(pa[6], pb[6], e) * (pv ? 1 - 0.14 * pvAmt : 1); rig.scale.setScalar(s);
+    let s = lerp(pa[6], pb[6], e) * (pv ? 1 - 0.14 * pvAmt : 1);
+    // Sur téléphone, la forme de la tâche monte, plus petite, dans la bande libre en haut de l'écran : jamais derrière le titre.
+    if (pv && view.mobile) { rig.position.x *= 1 - pvAmt; rig.position.y = lerp(rig.position.y, view.hh * 0.98, pvAmt); s = lerp(s, 0.3, pvAmt); }
+    rig.scale.setScalar(s);
     if (pv) uniforms.uMix.value = pvAmt;
     uniforms.uFade.value = lerp(A.fade, B.fade, e) * dim;
     uniforms.uFocus.value = camera.position.z - z;
