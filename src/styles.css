@@ -96,6 +96,9 @@ main, .header { position: relative; z-index: 2; }
 .hero__bottom { display: grid; grid-template-columns: 1.1fr 1.3fr 1fr; gap: 24px; align-items: end; border-top: 1px solid var(--line); padding-top: 20px; }
 .hero__kicker { font-size: clamp(1.05rem, 1.5vw, 1.5rem); font-weight: 600; line-height: 1.2; letter-spacing: -.02em; }
 .hero__lede { color: #c3c8d4; max-width: 44ch; }
+/* Voile de lecture : le paragraphe d'accueil passe devant la sphère ; un fond sombre et doux le garde lisible. */
+.hero__lede { position: relative; isolation: isolate; text-shadow: 0 1px 14px rgba(6, 7, 10, .9); }
+.hero__lede::before { content: ''; position: absolute; inset: -22px -36px; z-index: -1; pointer-events: none; background: radial-gradient(closest-side, rgba(6, 7, 10, .82), rgba(6, 7, 10, .55) 62%, rgba(6, 7, 10, 0)); }
 .hero__meta { display: grid; justify-items: end; gap: 10px; color: var(--muted); }
 .hero__scroll { display: flex; align-items: center; gap: 10px; }
 .hero__scroll i { width: 1px; height: 34px; background: linear-gradient(var(--accent), transparent); animation: drop 1.8s var(--ease) infinite; transform-origin: top; }
@@ -298,8 +301,12 @@ main, .header { position: relative; z-index: 2; }
 .hud__bar { position: relative; width: clamp(40px, 9vw, 130px); height: 1px; background: rgba(255, 255, 255, .2); }
 .hud__bar i { position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: left; box-shadow: 0 0 8px var(--accent); }
 #hudSection { min-width: 15ch; }
+.hud__right { transition: opacity .6s; }
+/* Pendant le voyage, la jauge d'autonomie dit déjà où l'on en est : la barre de progression s'efface. */
+.in-voyage .hud__right { opacity: 0; visibility: hidden; transition: opacity .6s, visibility 0s .6s; }
 .bigmail { display: block; width: max-content; max-width: 100%; font-size: clamp(1.35rem, 6.1vw, 7.4rem); font-weight: 600; letter-spacing: -.05em; line-height: 1.05; overflow: hidden; padding-bottom: .12em; border-bottom: 1px solid var(--line); }
 .bigmail span { display: inline-block; will-change: transform; }
+.bigmail { text-shadow: 0 2px 26px rgba(6, 7, 10, .85); }
 .contact { padding-bottom: 70px; }
 .hero__line .char { transform-origin: 50% 100%; }
 .fx-off .grain, .fx-off .aurora { display: none; }

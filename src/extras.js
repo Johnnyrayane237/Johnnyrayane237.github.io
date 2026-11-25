@@ -148,6 +148,9 @@ export function initExtras({ lenis, hero, reduced, fine, lang, sections, routeSt
   const bar = $('#hudBar'), pct = $('#hudPct'), sec = $('#hudSection');
   ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => { bar.style.transform = `scaleX(${s.progress})`; pct.textContent = String(Math.round(s.progress * 100)).padStart(3, '0'); sound.velocity(s.getVelocity()); } });
   sections.forEach(([sel, name], i) => ScrollTrigger.create({ trigger: sel, start: 'top 55%', end: 'bottom 55%', onToggle: (s) => { if (s.isActive) { sec.dataset.txt = `${String(i).padStart(2, '0')} — ${name}`; if (reduced) sec.textContent = sec.dataset.txt; else scramble(sec, 0.5); } } }));
+  // Pendant le voyage, deux repères suffisent : la jauge d'autonomie (l'histoire) et la frise 01–10 (la navigation).
+  // La route du bord droit et la barre de progression s'effacent, puis reviennent à la sortie du voyage.
+  if ($('#horizon')) ScrollTrigger.create({ trigger: '#horizon', start: 'top 50%', end: 'bottom 50%', toggleClass: { targets: root, className: 'in-voyage' } });
 
   if (reduced) return;
 
