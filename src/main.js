@@ -608,6 +608,40 @@ if (fine && !reduced) {
 initExtras({ lenis, hero, reduced, fine, lang, routeStops, sections: [['#top', lang === 'fr' ? 'Accueil' : 'Home'], ['#manifeste', lang === 'fr' ? 'Manifeste' : 'Manifesto'], ['#horizon', T['nav.horizon']], ['#agents', T['nav.agents']], ['#atelier', T['nav.atelier']], ['#trajectoire', T['nav.path']], ['#contact', T['nav.contact']]] });
 
 // ---------- Épilogue : la tâche à ne plus jamais faire ----------
+// Pendant que le visiteur écrit, la sphère prend la forme du projet le plus proche de sa tâche (mots-clés FR/EN,
+// sans accents, au début d'un mot). À égalité, l'ordre de la liste départage : le plus précis d'abord.
+const ASK = [
+  ['invoice', ['factur', 'impaye', 'paiement', 'encaiss', 'compta', 'invoice', 'payment', 'unpaid', 'billing', 'accounting']],
+  ['devis', ['devis', 'chiffr', 'tarif', 'quote', 'quotation', 'estimate', 'pricing']],
+  ['wave', ['doubl', 'tradu', 'sous-titr', 'voix off', 'dub', 'translat', 'subtitl', 'voice-over', 'voiceover', 'podcast']],
+  ['sms', ['sms', 'texto', 'rendez-vous', 'rdv', 'creneau', 'agenda', 'rappel', 'reservation', 'appointment', 'booking', 'reminder', 'text message']],
+  ['voice', ['appel', 'telephon', 'standard', 'repondeur', 'decroch', 'call', 'phone', 'voicemail']],
+  ['radar', ['candidat', 'emploi', 'recrut', 'cv', 'veille', 'prospect', 'offres d', 'job', 'hiring', 'apply', 'applicat', 'lead', 'scrap']],
+  ['switch', ['mail', 'e-mail', 'email', 'courriel', 'boite', 'trier', 'classer', 'inbox', 'sort', 'triage']],
+  ['film', ['video', 'montage', 'film', 'pub', 'motion', 'reseaux', 'instagram', 'tiktok', 'clip', 'ads', 'advert', 'social']],
+  ['site', ['site', 'web', 'landing', 'boutique', 'e-commerce', 'shop', 'store', 'page']],
+  ['server', ['serveur', 'heberg', 'sauvegard', 'deploi', 'infra', 'securi', 'server', 'hosting', 'backup', 'deploy', 'secur']],
+].map(([id, words]) => [id, words.map((w) => new RegExp(`(^|[^a-z0-9])${w.replace(/[-\s]/g, '[-\\s]?')}`))]);
+const plain = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const guessStation = (txt) => {
+  const t = plain(txt); let best = null, top = 0;
+  for (const [id, res] of ASK) { const n = res.filter((re) => re.test(t)).length; if (n > top) { top = n; best = id; } }
+  return best;
+};
+const askEcho = $('#askEcho');
+let askT = 0, askKey = null;
+$('#askInput').addEventListener('input', (e) => {
+  clearTimeout(askT);
+  askT = setTimeout(() => {
+    const key = guessStation(e.target.value);
+    if (key === askKey) return;
+    askKey = key; hero?.preview?.(key);
+    const s = STATIONS.find((x) => x.id === key);
+    askEcho.style.setProperty('--c', s ? s.color : 'transparent');
+    askEcho.textContent = s ? T['contact.echo'].replace('{p}', projOf(s).title) : '';
+  }, 300);
+});
+
 // Rien n'est envoyé par le site : la messagerie du visiteur s'ouvre avec le message prêt, il décide d'envoyer.
 $('#askForm').addEventListener('submit', (e) => {
   e.preventDefault();

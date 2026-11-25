@@ -232,6 +232,9 @@ b.is-roll.is-roll .rl > span { display: grid; height: auto; will-change: transfo
 .ask__input { flex: 1 1 320px; min-width: 0; padding: 17px 20px; border-radius: 99px; border: 1px solid rgba(255, 255, 255, .28); background: rgba(6, 7, 10, .6); color: var(--ink); font: inherit; font-size: 1.02rem; backdrop-filter: blur(8px); transition: border-color .3s, box-shadow .3s; }
 .ask__input::placeholder { color: #6f7686; }
 .ask__input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 128, 255, .25); }
+/* Ce que la Machine a reconnu dans la tâche tapée : une ligne discrète, un point à la couleur de la station. */
+.ask__echo { --c: transparent; min-height: 1.4em; margin: -4px 0 0 20px; font-size: .74rem; letter-spacing: .04em; color: #aeb4c0; display: flex; align-items: center; gap: 8px; }
+.ask__echo:not(:empty)::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 2px; background: var(--c); box-shadow: 0 0 10px var(--c); }
 
 /* 30 secondes : les trois métiers en une ligne */
 .quick__trades { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }

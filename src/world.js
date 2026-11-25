@@ -971,9 +971,14 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
 
   // ---------- Paire de formes en cours ----------
   let pair = -1;
-  const setPair = (i) => {
-    pair = i;
-    const A = STOPS[TRACK[i]], B = STOPS[TRACK[i + 1]], sa = shapeOf(A.shape), sb = shapeOf(B.shape);
+  const setPair = (i) => { pair = i; load(STOPS[TRACK[i]], STOPS[TRACK[i + 1]]); };
+  // À l'épilogue, la sphère peut prendre la forme d'une station (la tâche que le visiteur décrit) : paire « fin → station ».
+  let pvWant = null, pvCur = null, pvAmt = 0, pvShown = null;
+  // Quand le visiteur écrit sa tâche près de la fin, le voyage se termine : la sphère se forme entière avant de changer.
+  const aim = () => (pvWant && kT > K.end - 0.7 ? K.end : kT);
+  const setPreview = (key) => { pair = -2; pvShown = key; load(STOPS.end, STOPS[key]); };
+  const load = (A, B) => {
+    const sa = shapeOf(A.shape), sb = shapeOf(B.shape);
     attr.a.array.set(sa.pos); attr.b.array.set(sb.pos); attr.ma.array.set(sa.meta); attr.mb.array.set(sb.meta);
     attr.a.needsUpdate = attr.b.needsUpdate = attr.ma.needsUpdate = attr.mb.needsUpdate = true;
     uniforms.uFxA.value = A.fx; uniforms.uFxB.value = B.fx;
@@ -1023,7 +1028,8 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
   const tint = new Color(), cA = new Color(), cB = new Color();
   const apply = (k) => {
     const i = Math.min(TRACK.length - 2, Math.max(0, Math.floor(k))), f = Math.min(1, Math.max(0, k - i));
-    if (i !== pair) setPair(i);
+    const pv = pvCur && pvAmt > 0.001 && i === K.end - 1 && f > 0.98;
+    if (pv) { if (pair !== -2 || pvShown !== pvCur) setPreview(pvCur); } else if (i !== pair) setPair(i);
     uniforms.uHiAB.value.set(TRACK[i] === hiKey ? hiAmt : 0, TRACK[i + 1] === hiKey ? hiAmt : 0);
     // Le voyage : distance parcourue sur la route, et traversée de la forme si ce passage en est une.
     // Un saut suit la courbe « élan » (recul, traversée, léger dépassement) ; une bascule sur place reste douce.
@@ -1047,7 +1053,8 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     const z = lerp(pa[2], pb[2], e) + mid * 0.9 * (1 - flight);
     rig.position.set(lerp(pa[0], pb[0], e), lerp(pa[1], pb[1], e), z);
     rig.rotation.set(lerp(pa[3], pb[3], e) + ndc.y * -0.1, lerp(pa[4], pb[4], e) + Math.sin(time * 0.32) * lerp(A.sway, B.sway, e) + ndc.x * 0.16, lerp(pa[5], pb[5], e));
-    const s = lerp(pa[6], pb[6], e); rig.scale.setScalar(s);
+    const s = lerp(pa[6], pb[6], e) * (pv ? 1 - 0.14 * pvAmt : 1); rig.scale.setScalar(s);
+    if (pv) uniforms.uMix.value = pvAmt;
     uniforms.uFade.value = lerp(A.fade, B.fade, e) * dim;
     uniforms.uFocus.value = camera.position.z - z;
     halo.position.set(rig.position.x, rig.position.y, z - 0.7); halo.scale.setScalar(s * (1 + Math.sin(time * 0.6) * 0.04));
@@ -1079,7 +1086,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     if (warm > 2.5 && raw < 0.25 && level < 3) { acc += raw; frames++; if (frames >= 80) { if (acc / frames > 1 / 27) lighten(); acc = 0; frames = 0; } }
     // Pendant une traversée, la caméra prend son temps : le vol dure à peu près une seconde, même si l'on défile vite.
     const rate = !calm && legOf(Math.min(TRACK.length - 2, Math.max(0, Math.floor(kS))))[1] ? 3.6 : 6.5;
-    kS += (kT - kS) * (1 - Math.exp(-dt * rate)); if (Math.abs(kT - kS) < 1e-4) kS = kT;
+    const kGo = aim(); kS += (kGo - kS) * (1 - Math.exp(-dt * rate)); if (Math.abs(kGo - kS) < 1e-4) kS = kGo;
     camera.position.x += (ndc.x * 0.5 - camera.position.x) * 0.04; camera.position.y += (ndc.y * 0.32 - camera.position.y) * 0.04;
     if (!calm) drift += dt * 0.6;
     // Arrivée au contact : une onde part de la sphère et la lumière diffuse s'avive un instant.
@@ -1087,6 +1094,10 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     if (kS < K.end - 0.3) landed = false;
     land = Math.max(0, land - dt * 0.45); prevK = kS;
     hiAmt += (hiGoal - hiAmt) * (1 - Math.exp(-dt * 7)); if (hiAmt < 1e-3 && !hiGoal) { hiAmt = 0; hiKey = null; }
+    // Changement de forme à l'épilogue : on revient d'abord à la sphère, puis on prend la nouvelle forme.
+    if (pvWant !== pvCur && pvAmt < 0.02) pvCur = pvWant;
+    const pvGoal = pvWant && pvWant === pvCur && kS > K.end - 0.02 ? 1 : 0;
+    pvAmt += (pvGoal - pvAmt) * (1 - Math.exp(-dt * 2.4)); if (!pvGoal && pvAmt < 1e-3) pvAmt = 0;
     apply(kS);
     // Franchissement d'un seuil : un étirement très bref et peu contrasté, jamais un flash.
     let crossed = null;
@@ -1107,7 +1118,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
 
   return {
     get k() { return kT; },
-    set k(v) { kT = v; if (reduced) { kS = v; still(); } },
+    set k(v) { kT = v; if (reduced) { kS = aim(); still(); } },
     jump(v) { kT = kS = v; if (reduced) still(); },
     set dim(v) { dim = v; },
     // Zones libres mesurées dans la page, en pixels, par étape : { devis: { x, y, w, h, top }, … }.
@@ -1119,6 +1130,11 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     highlight(key, r) {
       if (key && r) { if (hiKey !== key) hiAmt = 0; hiKey = key; uniforms.uHi.value.set(r[0], r[1], r[2] ?? -1, r[3] ?? 2); hiGoal = 1; } else hiGoal = 0;
       if (reduced) { hiAmt = hiGoal; if (!hiGoal) hiKey = null; still(); }
+    },
+    // L'épilogue : la sphère prend la forme de la station la plus proche de la tâche décrite (null : retour à la sphère).
+    preview(key) {
+      pvWant = key && STOPS[key] && !STOPS[key].old ? key : null;
+      if (reduced) { kS = aim(); pvCur = pvWant; pvAmt = pvWant && kS > K.end - 0.02 ? 1 : 0; still(); }
     },
     get level() { return level; },
     play() { running = true; last = performance.now(); },
