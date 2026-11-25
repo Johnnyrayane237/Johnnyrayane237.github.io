@@ -367,29 +367,27 @@ const SHAPES = {
     b.agent([-0.35, 0.62, 0.1], 0.8);
     return b.done();
   },
-  // Le socle (VorcheX) : toutes les équipes d'agents reliées en constellation, et l'humain au centre — un simple carré blanc.
-  // prm : 0 structure des équipes · 1–1,99 messages qui voyagent vers le centre (position sur la fibre)
-  // · 2 l'humain · 2,5 son halo · 3 l'anneau extérieur qui tourne lentement.
+  // Le socle (VorcheX) : un hypercube, un cube à quatre dimensions, qui tourne lentement. L'enceinte du serveur
+  // se retourne sur elle-même sans jamais s'ouvrir, les messages filent le long de ses 32 arêtes, ses 16 sommets
+  // sont les équipes d'agents ; au centre, immobile, l'humain : un simple carré blanc. Aucun anneau.
+  // prm : 1 + (sommet·4 + direction)/64 + t·0,9/64 arêtes · 2 + sommet/16 sommets · 3 l'humain.
+  // La rotation en 4D et la projection se font dans le shader (fx 6) ; ici, la pose de départ (angle nul).
   server(N) {
-    const b = builder(N, 51), HUB = [];
-    for (let q = 0; q < 6; q++) { const a = (q / 6) * TAU + 0.52; HUB.push([Math.cos(a) * 1.5, Math.sin(a) * 1.12, (q % 2 ? 0.35 : -0.35)]); }
-    HUB.forEach((h, q) => {
-      // Une équipe : un orchestrateur (la marque d'agent) et ses quatre spécialistes autour de lui.
-      b.agent(h, 0.78);
-      for (let s = 0; s < 4; s++) {
-        const a = (s / 4) * TAU + q, c = [h[0] + Math.cos(a) * 0.42, h[1] + Math.sin(a) * 0.36, h[2] + Math.sin(a * 2) * 0.12];
-        b.ring(b.n(0.006), c, 0.07, 'xy', 0, 0.006, 0); b.line(b.n(0.004), h, c, 0, 0.006, 0, 0);
+    const b = builder(N, 51), P4 = (v) => [0, 1, 2, 3].map((i) => ((v >> i) & 1 ? 1 : -1));
+    const proj = (q) => { const f = 2.8 / (3.2 - q[3]); return [q[0] * f * 0.55, q[1] * f * 0.55, q[2] * f * 0.55]; };
+    for (let v = 0; v < 16; v++) for (let d = 0; d < 4; d++) {
+      if ((v >> d) & 1) continue;
+      const A = P4(v), B = P4(v | (1 << d));
+      for (let k = 0, n = b.n(0.02); k < n; k++) {
+        const t = b.rnd(), p = proj(A.map((a, i) => lerp(a, B[i], t)));
+        b.put(p[0] + b.j(0.014), p[1] + b.j(0.014), p[2] + b.j(0.014), d === 3 ? 0.35 : 0, 1 + (v * 4 + d) / 64 + t * (0.9 / 64));
       }
-      // La fibre vers le centre, où voyagent les messages, et le lien vers l'équipe voisine.
-      b.line(b.n(0.03), h, [0, 0, 0], 0, 0.01, 1, 1.99);
-      b.line(b.n(0.012), h, HUB[(q + 1) % 6], 0, 0.008, 0, 0);
-    });
-    // L'humain : un carré blanc, sobre, au centre de tout.
-    const S = 0.24;
-    [[-S, -S, S, -S], [S, -S, S, S], [S, S, -S, S], [-S, S, -S, -S]].forEach(([x0, y0, x1, y1]) => b.line(b.n(0.012), [x0, y0, 0.05], [x1, y1, 0.05], 1, 0.006, 2, 2));
-    for (let k = 0, n = b.n(0.03); k < n; k++) b.put((b.rnd() - 0.5) * 2 * S * 0.82, (b.rnd() - 0.5) * 2 * S * 0.82, 0.05 + b.j(0.01), 1, 2);
-    b.ring(b.n(0.02), [0, 0, 0.05], 0.44, 'xy', 1, 0.006, 2.5);
-    b.ring(b.n(0.05), [0, 0, 0], 2.15, 'xy', 0, 0.014, 3);
+    }
+    for (let v = 0; v < 16; v++) { const p = proj(P4(v)); for (let k = 0, n = b.n(0.01); k < n; k++) b.put(p[0] + b.j(0.09), p[1] + b.j(0.09), p[2] + b.j(0.09), 1, 2 + v / 16); }
+    // L'humain : un carré blanc, sobre, au centre de tout (à l'intérieur du cube intérieur).
+    const S = 0.15;
+    [[-S, -S, S, -S], [S, -S, S, S], [S, S, -S, S], [-S, S, -S, -S]].forEach(([x0, y0, x1, y1]) => b.line(b.n(0.008), [x0, y0, 0.05], [x1, y1, 0.05], 1, 0.006, 3, 3));
+    for (let k = 0, n = b.n(0.022); k < n; k++) b.put((b.rnd() - 0.5) * 2 * S * 0.82, (b.rnd() - 0.5) * 2 * S * 0.82, 0.05 + b.j(0.01), 1, 3);
     return b.done();
   },
   // Créer un site (vision) : dans un cadre de navigateur, la page se construit toute seule, bloc par bloc,
@@ -673,12 +671,28 @@ vec3 life(vec3 p, vec2 meta, float id, float T, out float glow){
     glow = pow(.5 + .5 * sin((prm - uTime * .22) * 12.566), 14.) * 1.9;
     if (tone > .9) glow += .2;
   } else if (id < 6.5) {
-    // La constellation : les messages convergent vers l'humain, qui reste calme ; l'anneau extérieur tourne.
-    if (prm > 2.9) { p.xy = rot(-uTime * .05) * p.xy; glow = .16 + .1 * sin(uTime * .9 + aRand.x * 6.283); }
-    else if (prm > 2.4) { float d = fract(uTime * .25); p.xy *= .9 + d * .5; glow = (1. - d) * .9 - .3; }
-    else if (prm > 1.9) glow = .75 + .15 * sin(uTime * 1.3);
-    else if (prm > .999) glow = pow(fract((prm - 1.) * 2. - uTime * .42 + aRand.z * .02), 9.) * 1.8 + .05;
-    else glow = .2 + .14 * sin(uTime * 1.6 + aRand.x * 9.);
+    // L'hypercube : rotation dans les plans XW puis YW, projection en perspective depuis la 4e dimension,
+    // puis une légère inclinaison pour lire la profondeur. Le cube intérieur devient l'extérieur, et inversement.
+    if (prm > 2.95) glow = .75 + .15 * sin(uTime * 1.3);
+    else {
+      bool vx = prm > 1.995;
+      float q = vx ? (prm - 2.) * 16. : (prm - 1.) * 64., idx = floor(q + 1e-3);
+      float t = vx ? 0. : clamp(fract(q + 1e-3) / .9, 0., 1.), v = vx ? idx : floor(idx / 4.), d = idx - floor(idx / 4.) * 4.;
+      vec4 A = vec4(mod(floor(v), 2.), mod(floor(v / 2.), 2.), mod(floor(v / 4.), 2.), mod(floor(v / 8.), 2.)) * 2. - 1.;
+      vec4 P = A + (vx ? vec4(0.) : (1. - step(.5, abs(vec4(d) - vec4(0., 1., 2., 3.)))) * 2. * t);
+      float a = uTime * .21, c = cos(a), s = sin(a);
+      P = vec4(P.x * c - P.w * s, P.y, P.z, P.x * s + P.w * c);
+      a = uTime * .13 + .6; c = cos(a); s = sin(a);
+      P = vec4(P.x, P.y * c - P.w * s, P.z, P.y * s + P.w * c);
+      float f = 2.8 / (3.2 - P.w);
+      p = P.xyz * f * .55;
+      p.xz = rot(uTime * .07 + .5) * p.xz; p.yz = rot(.32) * p.yz;
+      p += (aRand - .5) * (vx ? .09 : .016);
+      // Plus proche dans la 4e dimension = plus vif. Les messages courent sur les arêtes, chacune à son rythme.
+      float near = (f - 1.) * .4;
+      glow = vx ? .5 + .2 * sin(uTime * 1.7 + v * 1.3) + near
+                : .08 + near + pow(fract(t * .5 - uTime * .32 + idx * .618), 16.) * 1.8;
+    }
   } else if (id < 7.5) {
     if (prm > 1.5) glow = .5 + .45 * sin(uTime * 2.6);
     else { glow = smoothstep(.07, 0., abs(prm - (1. - fract(uTime * .22)))) * 1.7; p.z += sin(uTime * .9 + prm * 3.) * .035; }

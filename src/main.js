@@ -286,7 +286,7 @@ const LIT = {
   site: [[0.99, 1.99], WHOLE, [-0.01, 0.01]], // sites → les blocs · 26 000 points → tout · React → le cadre
   wave: [[0, 1.01], [1.9, 3.1], AGENT], // durée → la voix · contrôle qualité → les anneaux · workflows → l'agent
   film: [[0, 1.01, -1, 0.5], [0.45, 0.55, 0.9, 1.1], AGENT], // film → la pellicule · pubs → le bouton lecture · entreprises → l'agent
-  server: [[2.9, 3.1], [0.99, 1.99], [1.9, 2.6]], // ports → l'enceinte · HTTPS → les fibres · n8n central → le centre
+  server: [[0.99, 1.99], [1.99, 2.94], [2.95, 3.5]], // ports → l'enceinte (les arêtes) · HTTPS → chaque sommet · n8n central → le centre
 };
 let litTimer = 0, lastPtr = 'mouse';
 const litOff = () => { clearTimeout(litTimer); $$('.slide__metrics > .is-lit').forEach((d) => d.classList.remove('is-lit')); hero?.highlight?.(null); };
