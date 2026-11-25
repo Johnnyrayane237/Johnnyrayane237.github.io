@@ -74,6 +74,19 @@
 .hz-ph--future { opacity: 0; transform: translateY(26px); filter: blur(8px); pointer-events: none; }
 .hz-slide.is-future .hz-ph--today { opacity: 0; transform: translateY(-22px); filter: blur(8px); pointer-events: none; }
 .hz-slide.is-future .hz-ph--future { opacity: 1; transform: none; filter: none; pointer-events: auto; }
+/* La bascule vers le futur : la tâche d'aujourd'hui se barre d'un trait fin, de mot en mot (comme la liste
+   cochée du prologue), puis s'efface ; le futur arrive juste après. Au retour vers aujourd'hui, rien n'attend. */
+.hz-ph__task .w > span { background: linear-gradient(currentColor, currentColor) 0 56% / 0 .07em no-repeat; transition: background-size .2s; }
+.hz-slide.is-future .hz-ph__task .w > span { background-size: 100% .07em; transition: background-size .26s var(--ease) calc(var(--wi, 0) * .06s); }
+.hz-slide.is-future .hz-ph--today { transition-delay: .42s; }
+.hz-slide.is-future .hz-ph--future { transition-delay: .48s; }
+/* Chiffres en rouleau (main.js, roll) */
+:is(.slide__metrics, .proof, .is-roll) b.is-roll, b.is-roll { display: flex; width: max-content; align-items: flex-start; white-space: pre; font-variant-numeric: tabular-nums; }
+/* Les légendes des chiffres clés visent toutes leurs « span » : le rouleau garde ici sa propre mise en forme. */
+b.is-roll.is-roll span { display: block; font: inherit; color: inherit; letter-spacing: inherit; margin: 0; height: 1em; line-height: 1; }
+b.is-roll.is-roll .rl { overflow: hidden; }
+b.is-roll.is-roll .rl > span { display: grid; height: auto; will-change: transform; }
+.rl i { font-style: normal; display: block; height: 1em; line-height: 1; }
 .hz-ph__tag { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; }
 .hz-ph__tag > i { width: 7px; height: 7px; border-radius: 2px; background: #9da4ae; }
 .hz-ph--future .hz-ph__tag { color: var(--c); }
@@ -114,6 +127,8 @@
 .hz--static .hz-slide > .hz-ph { grid-area: auto; }
 .hz--static .hz-ph, .hz--static .hz-slide .hz-ph--today { opacity: 1; transform: none; filter: none; pointer-events: auto; }
 .hz--static .hz-ph--today { padding-bottom: 14px; border-bottom: 1px dashed var(--line); }
+.hz--static .hz-slide.is-future .hz-ph__task .w > span { background-size: 0 .07em; }
+.hz--static .hz-slide.is-future .hz-ph--today, .hz--static .hz-slide.is-future .hz-ph--future { transition-delay: 0s; }
 .hz--static .hz__dash, .hz--static .hz__rail { display: none; }
 
 /* ---------- La salle des agents ---------- */

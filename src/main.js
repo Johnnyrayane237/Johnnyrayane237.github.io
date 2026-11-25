@@ -10,7 +10,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { content, contact } from './i18n.js';
 import { initWorld, K, TRACK } from './world.js';
-import { initExtras, scramble } from './extras.js';
+import { initExtras } from './extras.js';
 import { renderFeatures } from './hood-render.js';
 import { STATIONS, shownStatus } from './stations.js';
 import { initChrono } from './chrono.js';
@@ -78,7 +78,7 @@ $('#hzStage').innerHTML = STATIONS.map((s, i) => {
     <p class="hz-ph__txt">${esc(t.today)}</p>
   </div>
   <div class="hz-ph hz-ph--future">
-    <p class="hz-ph__tag mono"><i></i>${esc(T['horizon.future'])} · <span class="badge badge--${ss}">${esc(HZ.status[ss])}</span></p>
+    <p class="hz-ph__tag mono"><i></i><span class="hz-ph__say" aria-label="${esc(T['horizon.future'])}">${[...T['horizon.future']].map((c) => `<span aria-hidden="true">${esc(c)}</span>`).join('')}</span> · <span class="badge badge--${ss}">${esc(HZ.status[ss])}</span></p>
     <h3 class="hz-ph__title">${esc(p.title)}</h3>
     <p class="hz-ph__txt">${esc(t.future)}</p>
     <div class="slide__metrics">${p.metrics.slice(0, 3).map(([b, x]) => `<div><b>${esc(b)}</b><span>${esc(x)}</span></div>`).join('')}</div>
@@ -125,6 +125,20 @@ $$('[data-split="chars"]').forEach((el) => {
 });
 $$('.title, .contact__title, .hz-ph__title, .hz-ph__task').forEach((el) => splitWords(el));
 splitWords($('#manifestoText'), 'mw');
+// Rang de chaque mot de la tâche : le trait qui la barre passe de mot en mot (horizon.css, « --wi »).
+$$('.hz-ph__task').forEach((el) => $$('.w', el).forEach((w, k) => w.style.setProperty('--wi', k)));
+
+// ---------- Chiffres en rouleau ----------
+// Chaque chiffre défile jusqu'à sa valeur, comme le niveau d'autonomie du tableau de bord ; flèches, virgules
+// et unités restent fixes. Les lecteurs d'écran lisent le vrai texte (aria-label), jamais les colonnes.
+function roll(el, delay = 0) {
+  if (!el.dataset.roll) {
+    const txt = el.textContent; el.dataset.roll = txt; el.setAttribute('aria-label', txt); el.classList.add('is-roll');
+    el.innerHTML = [...txt].map((c) => (/\d/.test(c) ? `<span class="rl" aria-hidden="true"><span>${[...'0123456789'].map((d) => `<i>${d}</i>`).join('')}</span></span>` : `<span aria-hidden="true">${esc(c)}</span>`)).join('');
+  }
+  const digits = [...el.dataset.roll].filter((c) => /\d/.test(c));
+  $$('.rl > span', el).forEach((col, k) => gsap.fromTo(col, { yPercent: 0 }, { yPercent: -10 * +digits[k], duration: 1.15 + k * 0.07, delay: delay + k * 0.05, ease: 'expo.out', overwrite: true }));
+}
 
 // ---------- Défilement fluide ----------
 let lenis = null;
@@ -275,10 +289,15 @@ function setStation(i, future) {
     next.classList.add('is-active'); gsap.killTweensOf(next);
     gsap.fromTo(next, { y: 50 * dir, opacity: 0, filter: 'blur(10px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.9, ease: 'expo.out', delay: prev ? 0.14 : 0, clearProps: 'filter' });
   }
-  // La phase qui apparaît : ses mots montent derrière un masque, ses chiffres se décodent.
-  const ph = $(future ? '.hz-ph--future' : '.hz-ph--today', next);
-  gsap.fromTo($$('.w > span', ph), { yPercent: 115 }, { yPercent: 0, duration: 1, ease: 'expo.out', stagger: 0.035, delay: changed && prev ? 0.18 : 0.05, overwrite: true });
-  if (future) $$('.slide__metrics b', next).forEach((el, j) => gsap.delayedCall(0.3 + j * 0.09, () => scramble(el, 0.7)));
+  // La phase qui apparaît : ses mots montent derrière un masque. À la bascule vers le futur, la tâche d'aujourd'hui
+  // se barre d'abord d'un trait fin (CSS), puis « Demain · automatisé » s'écrit lettre après lettre
+  // et les chiffres défilent en rouleau jusqu'à leur valeur.
+  const ph = $(future ? '.hz-ph--future' : '.hz-ph--today', next), late = future && !changed ? 0.45 : 0;
+  gsap.fromTo($$('.w > span', ph), { yPercent: 115 }, { yPercent: 0, duration: 1, ease: 'expo.out', stagger: 0.035, delay: (changed && prev ? 0.18 : 0.05) + late, overwrite: true });
+  if (future) {
+    gsap.fromTo($$('.hz-ph__say > span', next), { opacity: 0 }, { opacity: 1, duration: 0.01, stagger: 0.035, delay: 0.1 + late, overwrite: true });
+    $$('.slide__metrics b', next).forEach((el, j) => roll(el, 0.3 + late + j * 0.09));
+  }
   window.dispatchEvent(new CustomEvent('station:phase', { detail: { index: i, future } }));
 }
 if (reduced) {
@@ -425,23 +444,34 @@ function renderCase(id) {
   $('.case__scroll').scrollTop = 0;
   if (!reduced) gsap.from('#caseBody .case__n, #caseBody .case__title, #caseBody .case__sub, #caseBody .case__summary, #caseBody .case__img, #caseBody .metric, #caseBody .case__built li, #caseBody .case__links, #caseBody .feat', { y: 40, opacity: 0, duration: 0.9, stagger: 0.04, ease: 'expo.out', delay: 0.15 });
 }
-function openCase(id) {
+// La fiche se déplie depuis le bouton cliqué : son rectangle grandit jusqu'à remplir l'écran,
+// puis s'y replie à la fermeture (s'il est encore à l'écran ; sinon le rideau redescend, comme avant).
+let caseFrom = null;
+const rectClip = (el) => { const r = el.getBoundingClientRect(); return `inset(${r.top}px ${window.innerWidth - r.right}px ${window.innerHeight - r.bottom}px ${r.left}px round 28px)`; };
+const onScreen = (el) => { if (!el?.isConnected) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight; };
+function openCase(id, from = null) {
   lastFocus = document.activeElement; caseOpen = true; caseEl.setAttribute('aria-hidden', 'false'); lenis?.stop(); hidePreview();
   gsap.set(caseEl, { visibility: 'visible' });
+  caseFrom = onScreen(from) ? from : null;
   if (reduced) { gsap.set('.case__scroll', { clipPath: 'inset(0% 0 0 0)' }); renderCase(id); }
-  else gsap.timeline()
-    .fromTo('.case__curtain', { scaleY: 0, transformOrigin: 'bottom' }, { scaleY: 1, duration: 0.6, ease: 'expo.inOut' })
-    .add(() => renderCase(id))
-    .fromTo('.case__scroll', { clipPath: 'inset(100% 0 0 0)' }, { clipPath: 'inset(0% 0 0 0)', duration: 0.8, ease: 'expo.inOut' }, '-=0.15');
+  else {
+    const tl = gsap.timeline();
+    if (caseFrom) tl.set('.case__curtain', { scaleY: 1 }).fromTo('.case__curtain', { clipPath: rectClip(caseFrom) }, { clipPath: 'inset(0px 0px 0px 0px round 0px)', duration: 0.8, ease: 'expo.inOut' });
+    else tl.fromTo('.case__curtain', { scaleY: 0, transformOrigin: 'bottom', clipPath: 'none' }, { scaleY: 1, duration: 0.6, ease: 'expo.inOut' });
+    tl.add(() => renderCase(id))
+      .fromTo('.case__scroll', { clipPath: 'inset(100% 0 0 0)' }, { clipPath: 'inset(0% 0 0 0)', duration: 0.8, ease: 'expo.inOut' }, '-=0.15');
+  }
   $('#caseClose').focus();
 }
 function closeCase() {
   if (!caseOpen) return; caseOpen = false; caseEl.setAttribute('aria-hidden', 'true');
-  gsap.timeline({ onComplete: () => { gsap.set(caseEl, { visibility: 'hidden' }); lenis?.start(); lastFocus?.focus?.(); } })
-    .to('.case__scroll', { clipPath: 'inset(0 0 100% 0)', duration: reduced ? 0 : 0.6, ease: 'expo.inOut' })
-    .to('.case__curtain', { scaleY: 0, transformOrigin: 'top', duration: reduced ? 0 : 0.5, ease: 'expo.inOut' }, '-=0.3');
+  const back = !reduced && onScreen(caseFrom);
+  const tl = gsap.timeline({ onComplete: () => { gsap.set(caseEl, { visibility: 'hidden' }); gsap.set('.case__curtain', { clearProps: 'clipPath' }); lenis?.start(); lastFocus?.focus?.(); } })
+    .to('.case__scroll', { clipPath: 'inset(0 0 100% 0)', duration: reduced ? 0 : 0.6, ease: 'expo.inOut' });
+  if (back) tl.to('.case__curtain', { clipPath: rectClip(caseFrom), duration: 0.7, ease: 'expo.inOut' }, '-=0.3').set('.case__curtain', { scaleY: 0 });
+  else tl.to('.case__curtain', { scaleY: 0, transformOrigin: 'top', duration: reduced ? 0 : 0.5, ease: 'expo.inOut' }, '-=0.3');
 }
-$('#hzStage').addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) openCase(b.dataset.open); });
+$('#hzStage').addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) openCase(b.dataset.open, b); });
 
 // ---------- L'essentiel en 30 secondes (recruteur pressé) ----------
 const quick = $('#quick'), Q = L.quick, dimO = { v: 1 };
@@ -471,7 +501,7 @@ function openQuick() {
     .fromTo('.quick__panel', { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.85, ease: 'expo.inOut' }, 0)
     .fromTo('#quickBody > *', { y: 36, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, stagger: 0.07, ease: 'expo.out' }, 0.35)
     .fromTo('.proof', { rotateX: -60, transformPerspective: 800, transformOrigin: '50% 0%', opacity: 0 }, { rotateX: 0, opacity: 1, duration: 1, stagger: 0.09, ease: 'expo.out' }, 0.5)
-    .add(() => $$('.proof b').forEach((el) => scramble(el, 0.8)), 0.6)
+    .add(() => $$('.proof b').forEach((el, j) => roll(el, j * 0.08)), 0.6)
     .fromTo('#quickTimer', { scaleX: 0 }, { scaleX: 1, duration: 30, ease: 'none', onUpdate() { $('#quickSec').textContent = `${Math.max(0, Math.ceil(30 - this.time()))} s`; } }, 0.4);
   $('#quickClose').focus();
 }
@@ -485,7 +515,13 @@ document.addEventListener('click', (e) => { if (e.target.closest('[data-quick]')
 $('#quickClose').addEventListener('click', closeQuick);
 $('.quick__veil').addEventListener('click', closeQuick);
 $('#quickMore').addEventListener('click', closeQuick);
-$('#quickBody').addEventListener('click', (e) => { const p = e.target.closest('[data-proof]'); if (p) { closeQuick(); openCase(p.dataset.proof); } });
+$('#quickBody').addEventListener('click', (e) => { const p = e.target.closest('[data-proof]'); if (p) { const from = rectBox(p); closeQuick(); openCase(p.dataset.proof, from); } });
+// La carte de preuve disparaît avec le panneau : on garde son rectangle dans un repère invisible, le temps de l'ouverture.
+function rectBox(el) {
+  const r = el.getBoundingClientRect(), box = document.createElement('i');
+  Object.assign(box.style, { position: 'fixed', left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, pointerEvents: 'none', visibility: 'hidden' });
+  document.body.append(box); setTimeout(() => box.remove(), 1500); return box;
+}
 caseBody.addEventListener('click', (e) => { const n = e.target.closest('[data-next]'); if (n) { renderCase(n.dataset.next); } });
 $('#caseClose').addEventListener('click', closeCase);
 
