@@ -1,7 +1,8 @@
 # Rapport — mission HORIZON
 
 Branche `voyage-futur` (dossier `portfolio-futur`), créée depuis la branche de production.
-**Rien n'est publié.** La mise en ligne (`npm run publier`) attend ton « oui, publie ».
+**En ligne depuis le 25 novembre 2026** (à ta demande) : https://johanne.vorchex.tech/ et https://johnnyrayane237.github.io/.
+La branche `voyage-futur` est aussi sur GitHub. La branche `source` pointe encore sur l'ancienne version du code (voir question 11).
 
 ---
 
@@ -54,4 +55,5 @@ Aucune année n'est affichée dans le voyage. Aucun effet ancien : ni cadran, ni
 7. **Capture du portfolio dans l'atelier** : à refaire après la mise en ligne, pour montrer la nouvelle version.
 8. **Mini-salle des agents sur l'accueil** : pas faite (idée du storyboard). On la garde pour plus tard ?
 9. **Higgsfield** : abandonné. Le renouvellement automatique a été annulé le 24 novembre à ta demande : aucun prélèvement de 75 €, l'essai s'arrête tout seul le 27 novembre à 22 h 04 (heure de Paris).
-10. **Publication** : quand tout te va, dis « oui, publie ».
+10. **Publication** : faite le 25 novembre. Pour republier après une retouche : `npm run publier` dans `portfolio-futur`.
+11. **Branche `source`** : elle contient encore l'ancien code. Je peux l'avancer jusqu'à `voyage-futur` (simple avance, sans réécrire l'historique) pour que le dépôt montre le code du site en ligne.
