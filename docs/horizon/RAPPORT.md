@@ -33,6 +33,17 @@ Aucune année n'est affichée dans le voyage. Aucun effet ancien : ni cadran, ni
 - Poids : la salle des agents se charge à l'approche (paquet de départ 830 Ko au lieu de 894, soit 246 Ko compressés au lieu de 266).
 - Correctif : la page pouvait rester bloquée en plein voyage au défilement (la mesure de hauteur de Lenis était périmée).
 
+### Animations 2D, 3D et 4D ajoutées le 25 novembre (pas encore en ligne)
+
+- **2D** : les chiffres clés défilent en rouleau jusqu'à leur valeur ; à la bascule, la tâche d'aujourd'hui se barre puis « Demain · automatisé » s'écrit lettre après lettre ; la fiche projet se déplie depuis le bouton cliqué.
+- **Chiffres reliés à la sculpture** : survoler (ou toucher) un chiffre éclaire la partie de la sculpture qu'il raconte, le reste s'efface à moitié. Ex. « 74 → 34 » éclaire la pile des offres retenues, « 0,07 $ » la file des offres lues.
+- **L'épilogue répond** : pendant que le visiteur écrit sa tâche, la sphère prend la forme du projet le plus proche (factures → Encaisse, e-mails → Aiguilleur…), et une ligne sous le champ le dit. Sur téléphone, la forme monte dans la bande libre du haut, jamais derrière le titre.
+- **Hypercube (4D)** : le socle VorcheX est un cube à quatre dimensions qui tourne ; le cube intérieur passe à l'extérieur, les messages filent sur les arêtes, le carré blanc de l'humain reste immobile au centre.
+- **Rembobinage (4D)** : remonter la page fait rejouer le geste des sculptures à l'envers ; à l'arrêt, il repart en avant.
+- **Heure de Paris** : de 22 h à 6 h, la palette refroidit et la Machine ralentit ; le pied de page l'indique. Pour l'essayer de jour : `?nuit=1` dans l'adresse.
+- **Mémoire du site** : les stations déjà vues gardent un petit carré à leur couleur sur la frise 01–10, et à la visite suivante « Reprendre · 06 JobHunter → » apparaît en haut de page. Tout reste dans le navigateur du visiteur.
+- **Objets de verre** : un objet modélisé dans Blender par projet (micro, bulle, devis, tampon, aiguillage, loupe, navigateur, onde, clap, hypercube), en tête de sa fiche, à faire tourner du doigt. Je les ai mis dans la fiche plutôt que dans l'atelier : l'atelier montre les sites, les films et l'édition, pas les dix projets ; et dans la fiche, l'objet a sa propre colonne, sans rien derrière le texte. Un seul moteur 3D, chargé à la première fiche ouverte (13 à 88 Ko par objet).
+
 ## 2. La couche cinéma (nouveau)
 
 - Deux plans en boucle parfaite, rendus dans Blender en noir et blanc : `flux` (le futur des dix stations) et `horizon` (épilogue).
@@ -54,6 +65,7 @@ Aucune année n'est affichée dans le voyage. Aucun effet ancien : ni cadran, ni
 - Couche cinéma : bon plan à chaque moment (futur des stations, épilogue ; rien sur l'accueil), rien pendant l'« aujourd'hui », couleur qui glisse d'une station à l'autre, alternance volet / fondu, version téléphone, version anglaise, boucles sans saut visible.
 - Retouches du 25 novembre : sculpture JobHunter (ordinateur et téléphone), repères masqués pendant le voyage et revenus dans la salle des agents, salle des agents chargée à la demande (mission qui avance au défilement), accueil et épilogue lisibles, aucun débordement horizontal sur téléphone.
 - Corrigé : le repère de section en bas à droite restait sur « Accueil » pendant tout le voyage et la salle des agents (les zones épinglées étaient mal mesurées).
+- Animations du 25 novembre : mise en lumière au survol et au toucher, forme de l'épilogue (14 phrases d'essai en français et en anglais, toutes reconnues ; « ranger le garage » ne déclenche rien), hypercube (ordinateur et téléphone), rembobinage mesuré (l'horloge recule pendant une remontée soutenue), nuit forcée, mémoire et lien « Reprendre », objets de verre (rotation au glisser, téléphone, « Réduire les effets »).
 - Construction du site (`vite build`) sans erreur.
 - Non vérifié automatiquement : le mouvement réduit (je ne peux pas l'activer dans mon navigateur de test ; le code affiche l'image fixe).
 
