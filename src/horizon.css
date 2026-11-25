@@ -226,6 +226,9 @@
 .cine { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 .cine video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.08); clip-path: inset(0 0 0 100%); filter: saturate(.92) contrast(1.06) brightness(.72); transition: opacity 1.2s var(--ease), clip-path 1.4s var(--ease), transform 3s var(--ease); }
 .cine video.is-on { opacity: .62; clip-path: inset(0 0 0 0); transform: scale(1); }
+/* Une ouverture sur deux : simple fondu, sans volet (cinema.js, « entries »). */
+.cine video.is-fade { clip-path: inset(0 0 0 0); transform: scale(1.03); transition: opacity 1.6s var(--ease), transform 3s var(--ease); }
+.cine video.is-fade.is-on { transform: scale(1); }
 .cine::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s;
   background: linear-gradient(90deg, rgba(5, 6, 10, .9) 0%, rgba(5, 6, 10, .52) 38%, rgba(5, 6, 10, .08) 70%, rgba(5, 6, 10, .3) 100%),
               linear-gradient(0deg, rgba(5, 6, 10, .85), transparent 30%, transparent 75%, rgba(5, 6, 10, .6)); }

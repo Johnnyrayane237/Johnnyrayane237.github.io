@@ -33,7 +33,9 @@ export function initCinema({ mount, scenes = {}, reduced = false, mobile = false
   tint.className = 'cine__tint';
   mount.append(tint);
 
-  let cur = null, active = -1, pending, timer = 0;
+  // entries : nombre d'ouvertures de plan ; elles alternent volet (impair) et simple fondu (pair),
+  // pour que le même geste ne revienne pas dix fois de suite pendant le voyage.
+  let cur = null, active = -1, pending, timer = 0, entries = 0;
   // Effets réduits par le visiteur, ou allègement automatique d'un appareil qui peine : pas de plan.
   const off = () => saveData || root.classList.contains('fx-off') || root.classList.contains('fx-lite');
   const file = (plan, ext) => new URL(`cinema/${plan}${ext}`, document.baseURI).href;
@@ -63,6 +65,7 @@ export function initCinema({ mount, scenes = {}, reduced = false, mobile = false
     if (prev && planOf(next) === prevPlan && prev.classList.contains('is-on')) return;
     const k = active === 0 ? 1 : 0, v = players[k], plan = planOf(next);
     v.poster = file(plan, '.webp');
+    v.classList.toggle('is-fade', ++entries % 2 === 0);
     if (reduced) { v.removeAttribute('src'); v.load(); }
     else {
       const src = file(plan, mobile ? '-m.mp4' : '.mp4');
