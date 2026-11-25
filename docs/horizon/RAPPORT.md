@@ -12,7 +12,7 @@ Un voyage des tâches faites à la main aujourd'hui vers leur futur automatisé.
 
 | Acte | Ce qu'on voit |
 |---|---|
-| Prologue | La liste des tâches du jour se coche toute seule ; la Machine de particules forme ton nom. Derrière, des cartes de tâches flottent dans la brume (plan Blender). |
+| Prologue | La liste des tâches du jour se coche toute seule ; la Machine de particules forme ton nom, seule sur le noir (rien ne défile derrière). |
 | Manifeste | Trois métiers, en une phrase chacun. |
 | Dix stations | Chaque tâche apparaît d'abord faite à la main (silhouette Blender, saccadée, grise), puis bascule vers son futur : la Machine se transforme, le tableau de bord monte le niveau d'autonomie (0 à 6), et un plan de cinéma s'ouvre en volet derrière, dans la couleur de la station. |
 | Salle des agents | Trois missions jouées par onze agents modélisés dans Blender (verre, métal, lumière), sur un sol miroir. Une seule bulle à la fois. Tu es « Vous », celui qui décide. |
@@ -24,13 +24,14 @@ Aucune année n'est affichée dans le voyage. Aucun effet ancien : ni cadran, ni
 
 ## 2. La couche cinéma (nouveau)
 
-- Trois plans en boucle parfaite, rendus dans Blender en noir et blanc : `cartes` (prologue), `flux` (le futur des dix stations), `horizon` (épilogue).
-- Le site leur pose la couleur : bleu de marque pour le prologue et l'épilogue, couleur de la station pour le flux. D'une station à l'autre, le flux continue et seule sa couleur glisse.
+- Deux plans en boucle parfaite, rendus dans Blender en noir et blanc : `flux` (le futur des dix stations) et `horizon` (épilogue).
+- L'accueil n'a plus de plan : les cartes de tâches qui défilaient derrière le nom ont été retirées, elles volaient la vedette à la Machine.
+- Le site leur pose la couleur : bleu de marque pour l'épilogue, couleur de la station pour le flux. D'une station à l'autre, le flux continue et seule sa couleur glisse.
 - Le plan s'ouvre en volet depuis le côté de la sculpture ; un voile sombre garde le texte lisible. Aucun flash.
 - Pas de plan pendant l'« aujourd'hui » d'une tâche : il reste gris et silencieux.
 - Se retire tout seul avec « Réduire les effets », sur un appareil qui peine (allègement automatique) et en mode économie de données. Mouvement réduit : image fixe, en simple fondu.
 - Le flux est volontairement épuré : quelques traînées de lumière floues qui passent au loin, sans fils ni anneaux (la première version chargeait trop les stations).
-- Poids : 383 Ko pour les trois plans sur ordinateur, 144 Ko sur téléphone (versions plus légères). Un plan ne se charge que quand on arrive à son moment.
+- Poids : 243 Ko pour les deux plans sur ordinateur, 85 Ko sur téléphone (versions plus légères). Un plan ne se charge que quand on arrive à son moment.
 - Pas de mention « IA » : ces plans ne sont pas générés par IA, ils viennent de nos scripts Blender.
 - Refaire un plan : `blender -b --factory-startup --python blender/scripts/cinema_plans.py -- <plan> boucle <dossier>`, puis `blender/scripts/cinema_encoder.ps1 -Images <dossier>`.
 
@@ -39,7 +40,7 @@ Aucune année n'est affichée dans le voyage. Aucun effet ancien : ni cadran, ni
 - Missions 1 à 3 de la salle des agents (porte de validation comprise), atelier, trajectoire, épilogue, mode « Recruteur pressé » 30 s, version anglaise.
 - Téléphone : pas de débordement horizontal ; la salle des agents tient dans l'écran avec ses six agents.
 - « Réduire les effets » : le sol miroir de la salle et la couche cinéma disparaissent.
-- Couche cinéma : bon plan à chaque moment (prologue, futur des stations, épilogue), rien pendant l'« aujourd'hui », couleur qui glisse d'une station à l'autre, version téléphone, version anglaise, boucles sans saut visible.
+- Couche cinéma : bon plan à chaque moment (futur des stations, épilogue ; rien sur l'accueil), rien pendant l'« aujourd'hui », couleur qui glisse d'une station à l'autre, version téléphone, version anglaise, boucles sans saut visible.
 - Corrigé : le repère de section en bas à droite restait sur « Accueil » pendant tout le voyage et la salle des agents (les zones épinglées étaient mal mesurées).
 - Construction du site (`vite build`) sans erreur.
 - Non vérifié automatiquement : le mouvement réduit (je ne peux pas l'activer dans mon navigateur de test ; le code affiche l'image fixe).

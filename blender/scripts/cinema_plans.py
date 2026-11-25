@@ -1,13 +1,13 @@
-# Les plans de la couche cinéma : trois boucles parfaites rendues avec EEVEE, en noir et blanc.
+# Les plans de la couche cinéma : deux boucles parfaites rendues avec EEVEE, en noir et blanc.
 # Le site pose la couleur lui-même (la couleur de chaque station, ou le bleu froid de la marque).
+# L'accueil n'a volontairement pas de plan : rien ne doit défiler derrière le nom.
 #
-#   cartes   le prologue : des cartes de verre flottent dans la brume, chacune porte quelques lignes de tâche
 #   flux     le futur des stations : quelques traînées de lumière floues qui passent au loin
 #   horizon  l'épilogue : un sol miroir semé de repères, une bande de lumière plate tout au fond
 #
 # La caméra glisse de côté, jamais vers un point de fuite : aucune ligne ne rayonne depuis le centre.
 # Boucle parfaite : la scène se répète tous les P mètres et la caméra avance d'exactement P pendant la boucle ;
-# les paquets avancent d'un nombre entier de P ; les cartes oscillent sur une période égale à la boucle.
+# les paquets avancent d'un nombre entier de P.
 #
 # Lancement (sans interface) :
 #   blender -b --factory-startup --python blender/scripts/cinema_plans.py -- <plan> <essai|boucle> <dossier de sortie>
@@ -26,7 +26,6 @@ MODE = argv[1] if len(argv) > 1 else 'essai'
 SORTIE = argv[2] if len(argv) > 2 else os.path.join(os.getcwd(), 'cinema_rendu')
 L = 144          # images par boucle (6 s à 24 images par seconde)
 P = 4.0          # période de la scène en mètres, le long de X
-TAU = math.tau
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.preferences.filepaths.use_scripts_auto_execute = True
@@ -204,40 +203,6 @@ def plan_flux():
     camera((0, -4.6, 1.0), (85, 0, -30), 32, 2.6, 1.2)
 
 
-# ---------- Plan « cartes » : le prologue ----------
-def plan_cartes():
-    monde(0.007)
-    sol(-0.2)
-    lampe('haut', (4, 4, 9), (0, 0, 0), 300, 26)
-    lampe('cote', (-14, 4, 3), (0, math.radians(-75), 0), 260, 10)
-    # Un verre sombre d'écran : brillant, à peine lumineux, pour que chaque carte se lise sur le noir.
-    verre = principled('verre', base=(0.03, 0.03, 0.035), rugo=0.14, emission=(1, 1, 1), force=0.045)
-    trait = lumiere('trait', 5.0)
-    case = lumiere('case', 2.0)
-    me_carte = maillage(bpy.ops.mesh.primitive_cube_add, 'carte', verre, size=1)
-    me_trait = maillage(bpy.ops.mesh.primitive_cube_add, 'trait', trait, size=1)
-    me_case = maillage(bpy.ops.mesh.primitive_cube_add, 'case', case, size=1)
-    # Une tuile de P mètres : six cartes, chacune avec une case et une à trois lignes de tâche.
-    cartes = []
-    for _ in range(6):
-        cartes.append(dict(x=rnd.uniform(0, P), y=rnd.uniform(-1.0, 12.0), z=rnd.uniform(0.5, 2.6),
-                           rz=rnd.uniform(-28, 28), rx=rnd.uniform(-8, 8), lignes=rnd.randint(1, 3),
-                           phase=rnd.uniform(0, TAU), amp=rnd.uniform(0.03, 0.07)))
-    for k in TUILES:
-        for c in cartes:
-            pivot = vide('carte')
-            pivot.location = (k * P + c['x'], c['y'], c['z'])
-            pivot.rotation_euler = (math.radians(c['rx']), 0, math.radians(c['rz']))
-            # Une respiration lente, sur une période égale à la boucle.
-            piloter(pivot, 'location', 2, f"{c['z']} + {c['amp']} * sin(2 * pi * (frame - 1) / {L} + {c['phase']})")
-            poser(me_carte, (0, 0, 0), echelle=(0.95, 0.014, 0.6), parent=pivot)
-            poser(me_case, (-0.36, -0.012, 0.17), echelle=(0.07, 0.004, 0.07), parent=pivot)
-            for j in range(c['lignes']):
-                long = rnd.uniform(0.32, 0.6)
-                poser(me_trait, (-0.27 + long / 2, -0.012, 0.17 - j * 0.12), echelle=(long, 0.004, 0.014), parent=pivot)
-    camera((0, -5.2, 1.45), (88, 0, 4), 34, 5.6, 1.3)
-
-
 # ---------- Plan « horizon » : l'épilogue ----------
 def plan_horizon():
     monde(0.005)
@@ -279,7 +244,7 @@ def plan_horizon():
     camera((0, -4.0, 0.55), (90.5, 0, 0), 30, 9.0, 2.8)
 
 
-{'flux': plan_flux, 'cartes': plan_cartes, 'horizon': plan_horizon}[PLAN]()
+{'flux': plan_flux, 'horizon': plan_horizon}[PLAN]()
 
 # ---------- Rendu ----------
 os.makedirs(SORTIE, exist_ok=True)

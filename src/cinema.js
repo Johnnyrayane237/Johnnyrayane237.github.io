@@ -1,6 +1,6 @@
 // La couche cinéma : des plans vidéo rendus dans Blender (blender/scripts/cinema_plans.py), plein écran,
-// derrière la Machine de particules. Un plan par moment du récit : le prologue, le futur de chaque station
-// (jamais l'« aujourd'hui », qui reste gris et silencieux) et l'épilogue. Quand une tâche bascule vers son futur,
+// derrière la Machine de particules. Un plan par moment du récit : le futur de chaque station
+// (jamais l'« aujourd'hui », qui reste gris et silencieux) et l'épilogue. L'accueil n'en a pas. Quand une tâche bascule vers son futur,
 // le plan s'ouvre en volet depuis le côté de la sculpture, comme si le futur entrait dans la pièce.
 //
 // Les plans sont rendus en noir et blanc ; la couleur est posée ici, par un calque en mode « couleur ».
@@ -13,7 +13,7 @@
 // Fichiers (public/cinema/) : <plan>.mp4 (960 × 540), <plan>-m.mp4 (640 × 360, téléphone), <plan>.webp (image fixe).
 // Un plan n'est joué que s'il figure dans PLANS : on ajoute un plan ici, et nulle part ailleurs.
 
-export const PLANS = new Set(['cartes', 'flux', 'horizon']);
+export const PLANS = new Set(['flux', 'horizon']);
 
 /**
  * mount   : l'élément fixe qui reçoit les lecteurs (placé avant le canevas de la Machine)

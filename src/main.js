@@ -336,16 +336,16 @@ if (!reduced) {
 }
 
 // ---------- La couche cinéma ----------
-// Le metteur en scène lit où se trouve le milieu de l'écran et choisit la scène : le prologue, le futur de la
-// station en cours (l'« aujourd'hui » reste sans plan), la salle des agents, l'épilogue. Lu toutes les 8 images.
-// Les dix stations partagent le plan « flux », chacune dans sa couleur.
-const cineScenes = { prologue: { plan: 'cartes', tint: '#2F80FF' }, epilogue: { plan: 'horizon', tint: '#2F80FF' } };
+// Le metteur en scène lit où se trouve le milieu de l'écran et choisit la scène : le futur de la station en cours
+// (l'« aujourd'hui » reste sans plan), la salle des agents, l'épilogue. Lu toutes les 8 images.
+// Les dix stations partagent le plan « flux », chacune dans sa couleur. L'accueil n'a pas de plan : la Machine
+// de particules y reste seule sur le noir, rien ne défile derrière le nom.
+const cineScenes = { epilogue: { plan: 'horizon', tint: '#2F80FF' } };
 STATIONS.forEach((s) => { cineScenes[s.id] = { plan: 'flux', tint: s.color }; });
 const cine = initCinema({ mount: $('#cine'), scenes: cineScenes, reduced, mobile });
 const cineAt = () => {
   const c = window.innerHeight / 2;
   const inside = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.top <= c && r.bottom >= c; };
-  if (inside($('#top'))) return 'prologue';
   if (inside($('#horizon'))) return curF && STATIONS[curI] ? STATIONS[curI].id : null;
   if (inside(agEl)) return 'agents';
   if (inside($('#contact'))) return 'epilogue';

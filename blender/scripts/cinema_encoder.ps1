@@ -4,10 +4,10 @@
 # Passage en noir et blanc (le site pose la couleur) et léger halo autour des lumières.
 #
 # Lancement :
-#   powershell -File blender/scripts/cinema_encoder.ps1 -Images <dossier des images> [-Plans cartes,flux,horizon]
+#   powershell -File blender/scripts/cinema_encoder.ps1 -Images <dossier des images> [-Plans flux,horizon]
 param(
   [Parameter(Mandatory = $true)][string]$Images,
-  [string[]]$Plans = @('cartes', 'flux', 'horizon'),
+  [string[]]$Plans = @('flux', 'horizon'),
   [string]$Ffmpeg = 'ffmpeg'
 )
 $ErrorActionPreference = 'Stop'
