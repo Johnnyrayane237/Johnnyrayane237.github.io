@@ -14,7 +14,6 @@ import { initExtras, scramble } from './extras.js';
 import { renderFeatures } from './hood-render.js';
 import { STATIONS, shownStatus } from './stations.js';
 import { initChrono } from './chrono.js';
-import { initAgentRoom } from './agents.js';
 import { initCinema } from './cinema.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -132,6 +131,9 @@ let lenis = null;
 if (!reduced) {
   lenis = new Lenis({ duration: 1.15, smoothWheel: true });
   lenis.on('scroll', ScrollTrigger.update);
+  // Les zones épinglées allongent la page après coup : à chaque recalcul de ScrollTrigger, Lenis remesure la page
+  // (sans cela, sa butée pouvait rester sur l'ancienne hauteur et bloquer le défilement en plein voyage).
+  ScrollTrigger.addEventListener('refresh', () => lenis.resize());
   gsap.ticker.add((t) => lenis.raf(t * 1000));
   gsap.ticker.lagSmoothing(0);
   if (!skipIntro) lenis.stop();
@@ -316,18 +318,28 @@ $('#hzRail').addEventListener('click', (e) => {
 });
 
 // ---------- La salle des agents ----------
+// Son code et le chargeur de modèles 3D forment un morceau à part, téléchargé seulement à l'approche de la salle
+// (deux écrans avant, ou au bout de 9 s) : le démarrage du site s'allège, surtout sur téléphone.
+// La zone épinglée ne dépend pas de ce contenu (hauteur fixe) : rien ne bouge dans la page à son arrivée.
 const agEl = $('#agents');
-let agST = null, agPause = null;
-const room = initAgentRoom({
-  els: { section: agEl, stage: $('#agStage'), log: $('#agLog'), tabs: $('#agTabs'), ctl: $('#agCtl'), note: $('#agNote') },
-  texts: L.agents, reduced, compact: mobile,
-  ui: { play: T['agents.play'], pause: T['agents.pause'], skip: T['agents.skip'], replay: T['agents.replay'], scroll: T['agents.scroll'], log: T['agents.log'] },
-});
+let agST = null, agPause = null, room = null, roomP = null, agProgress = 0;
+const loadRoom = () => roomP || (roomP = import('./agents.js').then(({ initAgentRoom }) => {
+  room = initAgentRoom({
+    els: { section: agEl, stage: $('#agStage'), log: $('#agLog'), tabs: $('#agTabs'), ctl: $('#agCtl'), note: $('#agNote') },
+    texts: L.agents, reduced, compact: mobile,
+    ui: { play: T['agents.play'], pause: T['agents.pause'], skip: T['agents.skip'], replay: T['agents.replay'], scroll: T['agents.scroll'], log: T['agents.log'] },
+  });
+  if (!reduced) room.scroll(agProgress);
+  return room;
+}).catch(() => { roomP = null; return null; }));
+const agNear = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { agNear.disconnect(); loadRoom(); } }, { rootMargin: '0px 0px 200% 0px' });
+agNear.observe(agEl);
+setTimeout(loadRoom, 9000);
 if (!reduced) {
   stopST.agents = seg({ trigger: agEl, start: 'top bottom', end: 'top top' });
   // La mission JobHunter avance avec le défilement ; le monde de fond se met en pause pour laisser la carte graphique à la salle.
   agST = ScrollTrigger.create({ trigger: '#agPin', start: 'top top', end: () => `+=${Math.round(window.innerHeight * (mobile ? 2.4 : 2.8))}`, pin: true, scrub: 0.4, invalidateOnRefresh: true,
-    onUpdate: (s) => room.scroll(s.progress),
+    onUpdate: (s) => { agProgress = s.progress; room?.scroll(s.progress); },
     // Pause différée : le monde finit d'abord de se poser (jamais figé en pleine transformation), puis s'arrête.
     onToggle: (s) => { if (!hero) return; agPause?.kill(); if (s.isActive) agPause = gsap.delayedCall(1.6, () => hero.pause()); else hero.play(); } });
   gsap.from('.ag__head .w > span', { yPercent: 115, duration: 1.2, ease: 'expo.out', stagger: 0.05, scrollTrigger: { trigger: agEl, start: 'top 70%' } });
@@ -556,7 +568,7 @@ if (import.meta.env.DEV) {
   window.__dbg = { segs, hero, ScrollTrigger, K, lenis, go,
     // __dbg.goto('radar', 0.6) : se placer dans le futur d'une station (f < 0,3 : son « aujourd'hui »).
     goto: (id, f = 0.6) => go(stationY(STATIONS.findIndex((s) => s.id === id), f)),
-    room, agST, cine };
+    get room() { return room; }, get agST() { return agST; }, cine };
 }
 window.addEventListener('load', () => ScrollTrigger.refresh());
 document.fonts?.ready.then(() => ScrollTrigger.refresh());
