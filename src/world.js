@@ -4,7 +4,7 @@
 // (la sculpture lumineuse du projet, vive et fluide). Entre deux stations, on saute : aucun anneau, aucun cadran.
 import {
   WebGLRenderer, Scene, PerspectiveCamera, BufferGeometry, BufferAttribute, ShaderMaterial,
-  Points, AdditiveBlending, Color, Vector3, Vector2, Mesh, PlaneGeometry, Group,
+  Points, AdditiveBlending, Color, Vector3, Vector2, Vector4, Mesh, PlaneGeometry, Group,
 } from 'three';
 import { STATIONS, byId } from './stations.js';
 import { loadChr, sampleChr } from './shapes-loader.js';
@@ -584,10 +584,16 @@ uniform float uFlight; uniform float uWarp; uniform float uAspect;
 uniform float uFxA; uniform float uFxB; uniform float uScatter; uniform float uFocus;
 uniform vec3 uMouse; uniform float uMouseStrength; uniform vec3 uPulsePos; uniform float uPulse;
 uniform float uOldA; uniform float uOldB;
+// Mise en lumière d'une partie de la sculpture (un chiffre clé survolé) : points dont prm ∈ [x, y] et ton ∈ [z, w],
+// avec une intensité propre à chacune des deux formes en cours (uHiAB.x pour A, .y pour B).
+uniform vec4 uHi; uniform vec2 uHiAB;
 attribute vec3 aTo; attribute vec2 aMetaA; attribute vec2 aMetaB; attribute vec3 aRand;
 varying float vAlpha; varying float vToneA; varying float vToneB; varying float vM; varying float vStretch; varying vec2 vDir;
 ${NOISE}
 mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+float hiOf(vec2 meta){ return step(uHi.x, meta.y) * step(meta.y, uHi.y) * step(uHi.z, meta.x) * step(meta.x, uHi.w); }
+// La partie désignée s'avive, le reste de la sculpture s'efface à moitié (sans jamais disparaître).
+float lit(float g, vec2 meta, float amt){ return mix(g, mix(min(g, -.15) - .38, max(g, .3) + .9, hiOf(meta)), amt); }
 
 // Chaque forme a sa vie propre : déplacement + éclat. T est son horloge : à pleine vitesse pour le futur,
 // ralentie pour le travail manuel d'aujourd'hui (« le manuel peine, l'automatique coule »). Toujours fluide :
@@ -769,6 +775,7 @@ void main(){
   vec3 b = life(aTo, aMetaB, uFxB, mix(uTime, tSlow, uOldB), gB);
   // Une forme peut cacher un point en renvoyant un éclat < −2 : il devient transparent, sans fantôme.
   float hA = step(-2., gA), hB = step(-2., gB); gA = max(gA, -.7); gB = max(gB, -.7);
+  if (uHiAB.x + uHiAB.y > .001) { gA = max(lit(gA, aMetaA, uHiAB.x), -.7); gB = max(lit(gB, aMetaB, uHiAB.y), -.7); }
   // Chaque point part à son heure : la forme se défait puis se reforme par vagues.
   float m = clamp(uMix * 1.65 - aRand.x * .65, 0., 1.);
   m = m * m * (3. - 2. * m);
@@ -891,6 +898,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     uMouse: { value: new Vector3(9, 9, 0) }, uMouseStrength: { value: 0 }, uFade: { value: 1 }, uPulsePos: { value: new Vector3(9, 9, 0) }, uPulse: { value: 0 },
     uBaseA: { value: new Color() }, uAccA: { value: new Color() }, uBaseB: { value: new Color() }, uAccB: { value: new Color() },
     uOldA: { value: 0 }, uOldB: { value: 0 },
+    uHi: { value: new Vector4(0, 0, -1, 2) }, uHiAB: { value: new Vector2(0, 0) },
   };
   const mat = new ShaderMaterial({ vertexShader: VERTEX, fragmentShader: fragment, uniforms, transparent: true, depthWrite: false, blending: AdditiveBlending });
   const points = new Points(geo, mat); points.frustumCulled = false;
@@ -1010,10 +1018,13 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
   let travel = 0, lastTravel = 0, warp = 0, drift = 0, calm = false, land = 0, landed = false, prevK = 0;
   // era : étalonnage en cours · kick : les deux ou trois images d'étirement au franchissement d'un seuil · seg : passage en cours.
   let era = 1, kick = 0, seg = { i: 0, f: 0, a: TRACK[0], b: TRACK[1], flight: 0 };
+  // Mise en lumière : la forme visée (clé de la station), son intensité actuelle et celle visée.
+  let hiKey = null, hiAmt = 0, hiGoal = 0;
   const tint = new Color(), cA = new Color(), cB = new Color();
   const apply = (k) => {
     const i = Math.min(TRACK.length - 2, Math.max(0, Math.floor(k))), f = Math.min(1, Math.max(0, k - i));
     if (i !== pair) setPair(i);
+    uniforms.uHiAB.value.set(TRACK[i] === hiKey ? hiAmt : 0, TRACK[i + 1] === hiKey ? hiAmt : 0);
     // Le voyage : distance parcourue sur la route, et traversée de la forme si ce passage en est une.
     // Un saut suit la courbe « élan » (recul, traversée, léger dépassement) ; une bascule sur place reste douce.
     const leg = legOf(i), flight = reduced || calm ? 0 : leg[1];
@@ -1075,6 +1086,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     if (!landed && kS >= K.end - 0.02 && prevK < K.end - 0.02 && kS > prevK && !calm) { landed = true; land = 1; uniforms.uPulsePos.value.copy(rig.position); pulse = 1; }
     if (kS < K.end - 0.3) landed = false;
     land = Math.max(0, land - dt * 0.45); prevK = kS;
+    hiAmt += (hiGoal - hiAmt) * (1 - Math.exp(-dt * 7)); if (hiAmt < 1e-3 && !hiGoal) { hiAmt = 0; hiKey = null; }
     apply(kS);
     // Franchissement d'un seuil : un étirement très bref et peu contrasté, jamais un flash.
     let crossed = null;
@@ -1103,6 +1115,11 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     // Effets réduits : plus de traversée ni de traînées, le décor reste immobile.
     set calm(v) { calm = !!v; if (reduced) still(); },
     set velocity(v) { vel = Math.max(vel, v); },
+    // Un chiffre clé désigne sa partie de la sculpture : highlight('radar', [prmMin, prmMax, tonMin, tonMax]) ; null l'éteint.
+    highlight(key, r) {
+      if (key && r) { if (hiKey !== key) hiAmt = 0; hiKey = key; uniforms.uHi.value.set(r[0], r[1], r[2] ?? -1, r[3] ?? 2); hiGoal = 1; } else hiGoal = 0;
+      if (reduced) { hiAmt = hiGoal; if (!hiGoal) hiKey = null; still(); }
+    },
     get level() { return level; },
     play() { running = true; last = performance.now(); },
     pause() { running = false; },

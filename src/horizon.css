@@ -97,7 +97,12 @@ b.is-roll.is-roll .rl > span { display: grid; height: auto; will-change: transfo
 .hz-ph__title .w:last-child > span { color: var(--c); }
 .hz-ph__txt { color: #c8cdd8; max-width: 48ch; font-size: clamp(.95rem, 1.08vw, 1.12rem); }
 .hz-ph--today .hz-ph__txt { color: #9aa1ad; }
-.hz-slide .slide__metrics > div::before { background: linear-gradient(90deg, var(--c), transparent 70%); }
+.hz-slide .slide__metrics > div::before { background: linear-gradient(90deg, var(--c), transparent 70%); transform-origin: 0 0; transition: transform .5s var(--ease); }
+/* Le chiffre désigne sa partie de la sculpture : sa case s'éclaire d'un filet plus épais, à la couleur de la station. */
+.hz-slide .slide__metrics > div { cursor: crosshair; transition: background-color .4s; }
+.hz-slide .slide__metrics > div.is-lit { background: color-mix(in srgb, var(--c) 9%, rgba(6, 7, 10, .82)); }
+.hz-slide .slide__metrics > div.is-lit::before { transform: scaleY(3); }
+.hz-slide .slide__metrics > div.is-lit b { color: var(--c); }
 
 /* Tableau de bord : niveau d'autonomie (rouleau), jauge, statut, compteur de répétitions */
 .dash { --c: var(--accent); display: grid; gap: 8px; min-width: 232px; padding: 12px 14px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 14px; background: rgba(6, 7, 10, .62); backdrop-filter: blur(10px); font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; color: #cfd4df; transition: border-color .6s; }

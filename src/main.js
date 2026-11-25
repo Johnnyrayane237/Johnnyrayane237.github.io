@@ -272,8 +272,43 @@ if (!reduced) {
 // ---------- Le voyage : scène épinglée, une station par écran ----------
 const slides = $$('.hz-slide'), railBtns = $$('#hzRail button'), hzBar = $('#hzBar'), hzPin = $('#hzPin');
 let curI = -1, curF = null, hzST = null;
+
+// Chaque chiffre clé désigne la partie de la sculpture qu'il raconte (survol à la souris, toucher sur téléphone) :
+// [prm min, prm max, ton min, ton max], d'après la façon dont chaque forme est construite dans world.js.
+const AGENT = [39.5, 41.5], WHOLE = [-0.4, 39];
+const LIT = {
+  voice: [[3.5, 4.5], [2.5, 3.5], [0.99, 2.5]], // blocs → la structure · tests → le créneau réservé · fonctions → l'orbe qui parle et ses ondes
+  sms: [[2.5, 3.5], [3.5, 4.5], [0.99, 1.45]], // créneaux → l'orbite des trois créneaux · blocs → le téléphone · tests → la conversation
+  devis: [[0, 1.7], [1.9, 2.1], [2.9, 3.3]], // < 1 min → la demande et ses lignes · 0 prix inventé → le total · 3 relances
+  invoice: [[1.9, 2.1], [0, 1.01, -1, 0.5], [0, 1.01]], // tests → le tampon · règles → les lignes des factures · PDF → les factures
+  switch: [[0.41, 1.01], [-0.01, 0.01, 0.9, 1.1], [0, 0.41, -1, 0.5]], // bien classés → les trois boîtes · coût → l'enveloppe · relève → l'entrée
+  radar: [[2.9, 3.6], [1.9, 2.1], [0.99, 1.6]], // retenues → la pile gardée · vérifiées → la ligne de lecture · coût → la file
+  site: [[0.99, 1.99], WHOLE, [-0.01, 0.01]], // sites → les blocs · 26 000 points → tout · React → le cadre
+  wave: [[0, 1.01], [1.9, 3.1], AGENT], // durée → la voix · contrôle qualité → les anneaux · workflows → l'agent
+  film: [[0, 1.01, -1, 0.5], [0.45, 0.55, 0.9, 1.1], AGENT], // film → la pellicule · pubs → le bouton lecture · entreprises → l'agent
+  server: [[2.9, 3.1], [0.99, 1.99], [1.9, 2.6]], // ports → l'enceinte · HTTPS → les fibres · n8n central → le centre
+};
+let litTimer = 0, lastPtr = 'mouse';
+const litOff = () => { clearTimeout(litTimer); $$('.slide__metrics > .is-lit').forEach((d) => d.classList.remove('is-lit')); hero?.highlight?.(null); };
+const litOn = (el) => {
+  const sl = el.closest('.hz-slide');
+  if (!sl || !sl.classList.contains('is-active') || !sl.classList.contains('is-future')) return;
+  const s = STATIONS[+sl.dataset.i], r = LIT[s.id]?.[[...el.parentNode.children].indexOf(el)];
+  if (!r) return;
+  $$('.slide__metrics > .is-lit').forEach((d) => d.classList.remove('is-lit'));
+  el.classList.add('is-lit'); hero?.highlight?.(s.id, r);
+};
+$$('#hzStage .slide__metrics > div').forEach((el) => {
+  el.addEventListener('pointerdown', (e) => { lastPtr = e.pointerType; });
+  el.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') litOn(el); });
+  el.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') litOff(); });
+  // Au toucher, la partie reste éclairée deux secondes et demie.
+  el.addEventListener('click', () => { if (lastPtr !== 'touch') return; litOn(el); clearTimeout(litTimer); litTimer = setTimeout(litOff, 2600); });
+});
+
 function setStation(i, future) {
   if (i === curI && future === curF) return;
+  litOff();
   const changed = i !== curI, dir = i > curI ? 1 : -1, prev = slides[curI], next = slides[i];
   curI = i; curF = future;
   railBtns.forEach((b, j) => { b.classList.toggle('is-active', j === i); b.classList.toggle('is-done', j < i); b.setAttribute('aria-current', j === i ? 'true' : 'false'); });
