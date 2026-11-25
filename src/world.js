@@ -1,7 +1,7 @@
 // « La Machine » : un seul nuage de particules traverse tout le site.
 // Il écrit le nom, devient sphère, puis voyage vers le futur : à chaque station, la tâche manuelle d'aujourd'hui
-// (une silhouette modélisée dans Blender, gris papier, saccadée à 12 images/s) bascule dans son futur automatisé
-// (la sculpture lumineuse du projet, parfaitement fluide). Entre deux stations, on franchit une porte-cadran.
+// (une silhouette modélisée dans Blender, gris papier, au geste lent et appliqué) bascule dans son futur automatisé
+// (la sculpture lumineuse du projet, vive et fluide). Entre deux stations, on saute : aucun anneau, aucun cadran.
 import {
   WebGLRenderer, Scene, PerspectiveCamera, BufferGeometry, BufferAttribute, ShaderMaterial,
   Points, AdditiveBlending, Color, Vector3, Vector2, Mesh, PlaneGeometry, Group,
@@ -301,20 +301,42 @@ const SHAPES = {
     b.agent([-1.3, 0.92, 0.1], 0.85);
     return b.done();
   },
-  // JobHunter : 74 offres sur le radar, 34 retenues se dressent en colonnes de lumière.
+  // JobHunter : le tri des offres. Les fiches d'offres avancent en file jusqu'au trait de lecture de l'agent ;
+  // chaque fiche lue part sur sa pile : en haut les candidatures préparées (couleur d'accent, la coche attend
+  // la validation d'une personne), en bas les offres écartées, éteintes. Aucun cercle : des fiches, une file, deux piles.
+  // prm : 0 rail de la file · 1–1,575 fiches de la file (1 + rang × 0,1, + 0,05 si retenue, + 0,025 pour l'aspect « après lecture »)
+  // · 2 trait de lecture · 3 pile retenue · 3,5 coche · 4 pile écartée.
+  // Les fiches de la file sont posées à l'origine : le shader les place sur leur trajet (voir life(), id 4).
+  // « radar » reste le nom de la station (stations.js), même si la sculpture n'a plus rien d'un radar.
   radar(N) {
-    const b = builder(N, 31), ang = (x, z) => (Math.atan2(z, x) / TAU + 1) % 1;
-    [[0.5, 0.06], [1, 0.08], [1.5, 0.1], [1.95, 0.14]].forEach(([r, f]) => b.ring(b.n(f), [0, 0, 0], r, 'xz', 0, 0.012));
-    for (let k = 0, n = b.n(0.08); k < n; k++) { const t = (b.rnd() * 2 - 1) * 1.95, alongX = b.rnd() < 0.5, x = alongX ? t : b.j(0.012), z = alongX ? b.j(0.012) : t; b.put(x, 0, z, 0, ang(x, z)); }
-    for (let k = 0, n = b.n(0.1); k < n; k++) { const r = Math.sqrt(b.rnd()) * 1.95, a = b.rnd() * TAU; b.put(Math.cos(a) * r, b.j(0.01), Math.sin(a) * r, 0, a / TAU); }
-    const keep = Math.floor((N * 0.21) / 34), drop = Math.floor((N * 0.05) / 40);
-    for (let o = 0; o < 74; o++) {
-      const r = 0.3 + b.rnd() * 1.55, a = b.rnd() * TAU, x = Math.cos(a) * r, z = Math.sin(a) * r, kept = o % 2 === 0 && o < 68;
-      if (kept) { const h = 0.22 + b.rnd() * 0.6; for (let k = 0; k < keep; k++) { const top = b.rnd() < 0.3; b.put(x + b.j(top ? 0.07 : 0.022), top ? h + b.j(0.05) : b.rnd() * h, z + b.j(top ? 0.07 : 0.022), 1, a / TAU); } }
-      else for (let k = 0; k < drop; k++) b.put(x + b.j(0.06), b.j(0.012), z + b.j(0.06), 0.15, a / TAU);
-    }
-    // L'équipe d'agents qui veille sur le radar (vue d'en haut, la sculpture est couchée).
-    b.agent([-1.2, 0.95, -1.2], 0.9); b.agent([1.25, 0.8, -1.0], 0.75); b.agent([0, 1.05, 1.4], 0.75);
+    const b = builder(N, 31), FW = 0.36, FH = 0.23;
+    const card = (n, cx, cy, cz, tone, prm, rz = 0, wj = 0.006) => {
+      const cs = Math.cos(rz), sn = Math.sin(rz);
+      const P = (x, y) => b.put(cx + x * cs - y * sn + b.j(wj), cy + x * sn + y * cs + b.j(wj), cz + b.j(wj), tone, prm);
+      for (let k = 0; k < n * 0.6; k++) { const q = rrPoint(b.rnd(), FW, FH, 0.035); P(q[0], q[1]); }
+      // Le logo de l'entreprise, l'intitulé du poste, puis une ligne de détail.
+      for (let k = 0; k < n * 0.1; k++) P(-0.12 + b.j(0.05), 0.045 + b.j(0.05));
+      for (let k = 0; k < n * 0.17; k++) P(-0.065 + b.rnd() * 0.2, 0.055);
+      for (let k = 0; k < n * 0.13; k++) P(-0.145 + b.rnd() * 0.19, -0.05);
+    };
+    // La file : six fiches, chacune en deux aspects (avant lecture, après lecture) ; 1 fiche sur 2 environ est retenue.
+    const KEPT = [1, 0, 1, 1, 0, 0];
+    KEPT.forEach((kept, k) => {
+      card(b.n(0.032), 0, 0, 0, 0, 1 + k * 0.1 + kept * 0.05);
+      card(b.n(0.032), 0, 0, 0, kept ? 1 : 0.15, 1 + k * 0.1 + kept * 0.05 + 0.025);
+    });
+    // Le rail discret de la file (de x = −1,32 au trait de lecture, en x = 0,08), et le trait de lecture de l'agent,
+    // coiffé de sa barre de regard. Ces repères sont repris dans le shader : les changer ici, c'est les changer là-bas.
+    b.line(b.n(0.025), [-1.32, -0.08, -0.02], [-0.02, -0.08, -0.02], 0, 0.006, 0, 0);
+    b.line(b.n(0.03), [0.08, -0.24, 0.04], [0.08, 0.42, 0.04], 1, 0.008, 2, 2);
+    for (let k = 0, n = b.n(0.01); k < n; k++) b.put(0.08 + (b.rnd() - 0.5) * 0.26, 0.52 + b.j(0.022), 0.05 + b.j(0.01), 1, 41);
+    // Pile retenue : sept candidatures préparées, bien alignées ; la coche (en bas à droite de celle du dessus) attend la personne.
+    for (let k = 0; k < 7; k++) card(b.n(0.026), 1.28 + k * 0.012, 0.62 + k * 0.034, -0.2 + k * 0.03, 1, 3);
+    const top = [1.28 + 6 * 0.012, 0.62 + 6 * 0.034, -0.2 + 6 * 0.03 + 0.01];
+    b.line(b.n(0.005), [top[0] + 0.07, top[1] - 0.04, top[2]], [top[0] + 0.095, top[1] - 0.07, top[2]], 1, 0.006, 3.5, 3.5);
+    b.line(b.n(0.008), [top[0] + 0.095, top[1] - 0.07, top[2]], [top[0] + 0.15, top[1] - 0.01, top[2]], 1, 0.006, 3.5, 3.5);
+    // Pile écartée : six offres en vrac, éteintes.
+    for (let k = 0; k < 6; k++) card(b.n(0.018), 1.23 + b.j(0.12), -0.82 + k * 0.026, -0.2 + k * 0.03, 0.15, 4, b.j(0.5));
     return b.done();
   },
   // Aiguilleur : un e-mail entre, la voie se divise vers le bon collègue.
@@ -494,7 +516,7 @@ const STOPS = {
   sms: { shape: 'sms', fx: 12, col: ['#2F80FF', '#FF7AD9'], fade: 1, halo: 0.35, sway: 0.2, pose: (v) => side(v, 0.06, -0.36, 0.92) },
   voice: { shape: 'voice', fx: 11, col: ['#2F80FF', '#C49BFF'], fade: 1, halo: 0.35, sway: 0.18, pose: (v) => side(v, 0.06, -0.42, 0.95) },
   wave: { shape: 'wave', fx: 3, col: ['#2F80FF', '#7CF5D0'], fade: 1, halo: 0.35, sway: 0.22, pose: (v) => side(v, 0.12, -0.5, 0.92) },
-  radar: { shape: 'radar', fx: 4, col: ['#2F80FF', '#35E08B'], fade: 1, halo: 0.3, sway: 0.12, pose: (v) => side(v, 0.95, -0.25, 0.95) },
+  radar: { shape: 'radar', fx: 4, col: ['#2F80FF', '#35E08B'], fade: 1, halo: 0.3, sway: 0.16, pose: (v) => side(v, 0.06, -0.34, 0.95) },
   switch: { shape: 'switch', fx: 5, col: ['#2F80FF', '#FFC46B'], fade: 1, halo: 0.3, sway: 0.2, pose: (v) => side(v, 0.1, -0.38, 0.95) },
   server: { shape: 'server', fx: 6, col: ['#35E08B', '#F4F7FF'], fade: 1, halo: 0.45, sway: 0.16, pose: (v) => side(v, 0.12, -0.3, 0.98) },
   invoice: { shape: 'invoice', fx: 7, col: ['#5C9BFF', '#FFB347'], fade: 1, halo: 0.3, sway: 0.2, pose: (v) => side(v, 0.08, -0.48, 1) },
@@ -502,9 +524,10 @@ const STOPS = {
   site: { shape: 'site', fx: 14, col: ['#2F80FF', '#5EC8FF'], fade: 1, halo: 0.32, sway: 0.18, pose: (v) => side(v, 0.06, -0.4, 0.98) },
   dim: { shape: 'terrain', fx: 2, col: ['#2F80FF', '#EAF1FF'], fade: 0.3, halo: 0, sway: 0, pose: () => [0, 0, 0, 0.55, 0, 0.18, 1] },
   path: { shape: 'helix', fx: 10, col: ['#2F80FF', '#8AB8FF'], fade: 0.6, halo: 0.15, sway: 0.1, pose: (v) => (v.mobile ? [v.hw * 0.55, 0, -1.2, 0, 0, 0.12, 0.7] : [v.hw * 0.72, 0, -0.4, 0, 0, 0.14, 1]) },
-  end: { shape: 'sphere', fx: 1, col: ['#2F80FF', '#EAF1FF'], fade: 0.9, halo: 1, sway: 0, pose: (v) => [0, 0, 0, 0, 0, 0.18, v.mobile ? 0.77 : 1] },
+  // L'épilogue : la sphère se range à droite (en retrait sur téléphone), pour laisser l'adresse et le texte lisibles.
+  end: { shape: 'sphere', fx: 1, col: ['#2F80FF', '#EAF1FF'], fade: 0.62, halo: 0.6, sway: 0, pose: (v) => (v.mobile ? [0, v.hh * 0.45, -1.8, 0, 0, 0.18, 0.58] : [v.hw * 0.74, 0.3, -1.8, 0, 0, 0.18, 0.74]) },
 };
-// Les étapes « aujourd'hui » : la même place que leur futur, en gris papier et encre de stylo, sans halo, saccadées (old = 1).
+// Les étapes « aujourd'hui » : la même place que leur futur, en gris papier et encre de stylo, sans halo, au ralenti (old = 1).
 // Tant que le modèle Blender n'est pas là, la forme de secours (le futur en gris) garde l'animation du futur.
 const PAPER = ['#9DA4AE', '#7FA2DC'];
 for (const s of STATIONS) {
@@ -516,15 +539,14 @@ for (const s of STATIONS) {
 // Pour chaque passage d'une étape à la suivante : distance parcourue et manière d'y aller
 // (1 : on traverse la forme quittée et la suivante arrive du fond ; 0 : la forme se transforme sur place).
 // La bascule « aujourd'hui → futur » se fait sur place (0) ; le passage d'un futur à la station suivante est un saut (1).
-// Après la dernière station, on glisse sans porte vers le fond calme de la salle des agents
-// (le monde y est mis en pause : jamais figé au milieu d'un anneau).
-// Pas de porte vers le contact : on y lit longtemps, et un anneau figé en plein saut resterait à l'écran.
+// Après la dernière station, on glisse sans saut vers le fond calme de la salle des agents
+// (le monde y est mis en pause : jamais figé en plein saut). Pas de saut vers le contact : on y lit longtemps.
 const LEG = { cloud: [6, 0], name: [0, 0], server: [8, 0], path: [20, 0] };
 STATIONS.forEach((s) => { LEG[`auj_${s.id}`] = [0, 0]; });
 const legOf = (i) => LEG[TRACK[i]] || [14, 1];
 // Abscisse de chaque étape le long de la route.
 const AT = TRACK.map((_, i) => { let d = 0; for (let j = 0; j < i; j++) d += legOf(j)[0]; return d; });
-// Couleur d'une étape pour ses balises et sa porte : celle de la station (sa promesse), sinon le bleu clair.
+// Couleur d'une étape pour ses balises : celle de la station (sa promesse), sinon le bleu clair.
 const tintOf = (key) => stationOf(key)?.color || (STOPS[key].col[1] === '#EAF1FF' ? '#8AB8FF' : STOPS[key].col[1]);
 // Courbe « élan vers l'avant » des sauts : on recule un peu pour prendre son élan, on traverse,
 // on dépasse légèrement l'arrivée, puis on se pose. Jamais de mouvement linéaire.
@@ -567,8 +589,9 @@ varying float vAlpha; varying float vToneA; varying float vToneB; varying float 
 ${NOISE}
 mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
 
-// Chaque forme a sa vie propre : déplacement + éclat. T est son horloge : fluide pour le futur,
-// échantillonnée à 12 images/s pour le travail manuel d'aujourd'hui (« le manuel saccade, l'automatique coule »).
+// Chaque forme a sa vie propre : déplacement + éclat. T est son horloge : à pleine vitesse pour le futur,
+// ralentie pour le travail manuel d'aujourd'hui (« le manuel peine, l'automatique coule »). Toujours fluide :
+// une animation saccadée se confondait avec un ordinateur qui rame.
 vec3 life(vec3 p, vec2 meta, float id, float T, out float glow){
   glow = 0.;
   float tone = meta.x, prm = meta.y;
@@ -615,8 +638,31 @@ vec3 life(vec3 p, vec2 meta, float id, float T, out float glow){
     if (prm < 1.5) { float w = .5 + .5 * sin(prm * 26. - uTime * 3.2), w2 = .5 + .5 * sin(prm * 9. + uTime * 1.3); p.y *= .32 + .68 * w * (.55 + .45 * w2); glow = w * .55; }
     else { p.yz = rot(uTime * (prm > 2.5 ? -.45 : .3)) * p.yz; glow = .35 + .25 * sin(uTime * 2. + prm); }
   } else if (id < 4.5) {
-    float d = fract(prm - uTime * .14); glow = pow(1. - d, 7.) * 1.7;
-    if (tone > .9) { p.y *= .7 + .3 * sin(uTime * 1.6 + prm * 40.); glow += .25; }
+    // JobHunter, le tri (une fiche toutes les 2 s, trajet de 12 s) : la fiche glisse sur le rail, marque un temps
+    // sous le trait de lecture, change d'aspect une fois lue, puis part sur sa pile. Le trait s'éclaire à chaque lecture.
+    if (prm > 3.9) glow = .02 + .04 * sin(uTime * .6 + p.x * 4.);
+    else if (prm > 3.4) glow = .6 + .3 * sin(uTime * 2.2);
+    else if (prm > 2.9) glow = .22 + .1 * sin(uTime * .9 + p.y * 7.);
+    else if (prm > 1.9) glow = .18 + pow(1. - fract(uTime / 2. - .72), 6.) * 1.3;
+    else if (prm > .999) {
+      float x = (prm - 1.) * 10. + .001, k = floor(x), r = x - k, kept = step(.4, r), after = step(.2, r - kept * .5);
+      float t = fract(k / 6. + uTime / 12.), e = smoothstep(.66, .97, t), u = 1. - e;
+      // Repères de radar() : rail de x = −1,32 au trait de lecture (x = 0,08), dessus des deux piles.
+      vec3 R = vec3(.08, .1, .08);
+      vec3 c = vec3(mix(-1.32, .08, min(t / .58, 1.)), .1, smoothstep(.48, .6, t) * .08);
+      if (t > .66) {
+        vec3 E = kept > .5 ? vec3(1.364, .858, .01) : vec3(1.23, -.664, -.02);
+        vec3 C1 = kept > .5 ? vec3(.63, .8, .45) : vec3(.63, -.2, .35);
+        c = u * u * R + 2. * u * e * C1 + e * e * E;
+      }
+      // Une offre écartée bascule en tombant ; une retenue reste droite.
+      if (kept < .5) p.xy = rot(-.45 * e) * p.xy;
+      p += c;
+      float vis = after > .5 ? smoothstep(.6, .64, t) * (1. - smoothstep(.93, .985, t)) : smoothstep(0., .06, t) * (1. - smoothstep(.6, .64, t));
+      float level = after > .5 ? (kept > .5 ? .45 : mix(.05, -.4, e)) : .16;
+      glow = vis > .05 ? mix(-.7, level + exp(-pow((t - .62) / .02, 2.)) * 1.1, vis) : -5.;
+    }
+    else glow = .05 + .04 * sin(uTime * .8 + p.x * 3.);
   } else if (id < 5.5) {
     glow = pow(.5 + .5 * sin((prm - uTime * .22) * 12.566), 14.) * 1.9;
     if (tone > .9) glow += .2;
@@ -717,10 +763,10 @@ vec3 life(vec3 p, vec2 meta, float id, float T, out float glow){
 
 void main(){
   float gA; float gB;
-  // Horloge saccadée : 12 images par seconde pour le travail manuel.
-  float t12 = floor(uTime * 12.) / 12.;
-  vec3 a = life(position, aMetaA, uFxA, mix(uTime, t12, uOldA), gA);
-  vec3 b = life(aTo, aMetaB, uFxB, mix(uTime, t12, uOldB), gB);
+  // Horloge du travail manuel : ralentie, jamais saccadée.
+  float tSlow = uTime * .6;
+  vec3 a = life(position, aMetaA, uFxA, mix(uTime, tSlow, uOldA), gA);
+  vec3 b = life(aTo, aMetaB, uFxB, mix(uTime, tSlow, uOldB), gB);
   // Une forme peut cacher un point en renvoyant un éclat < −2 : il devient transparent, sans fantôme.
   float hA = step(-2., gA), hB = step(-2., gB); gA = max(gA, -.7); gB = max(gB, -.7);
   // Chaque point part à son heure : la forme se défait puis se reforme par vagues.
@@ -773,7 +819,7 @@ void main(){
   col = max(col + vec3(.55, 0., -.55) * c.y * uWarp * 1.3, 0.);
   gl_FragColor = vec4(col, a * vAlpha * uFade / sqrt(vStretch));
 }`;
-// La vie des formes reçoit son horloge T : dans life(), uTime devient T (fluide ou saccadée selon l'époque de la forme).
+// La vie des formes reçoit son horloge T : dans life(), uTime devient T (pleine vitesse ou ralentie selon l'époque de la forme).
 const VERTEX = vertex.replace(/vec3 life\([\s\S]*?\n}\n/, (s) => s.replaceAll('uTime', 'T'));
 
 // Décor : étoiles (genre 0), fil de route (1), balises des étapes (2). Tout est placé par rapport à la caméra
@@ -816,34 +862,6 @@ void main(){
   float r = length(q) * 2.; if (r > 1.) discard;
   gl_FragColor = vec4(vCol, (smoothstep(1., .0, r) * .75 + smoothstep(.45, .0, r) * .5) * vA / sqrt(vStretch));
 }`;
-// Porte : un anneau de lumière fin et net, que l'on traverse entre deux stations, à la couleur (refroidie) de la destination.
-// Volontairement aucun trait rayonnant, aucune graduation, aucun texte autour : rien qui rappelle un cadran ou un soleil.
-// Deux segments d'arc glissent le long de l'anneau (le « chargement » du saut), un peu plus vite à chaque niveau (uSpin).
-const gateFragment = /* glsl */ `
-uniform vec3 uTint; uniform float uA; uniform float uTime; uniform float uR; uniform float uSpin;
-varying vec2 vUv;
-void main(){
-  vec2 p = (vUv - .5) * 2. * (uR + .7);
-  float d = length(p), ang = atan(p.y, p.x) - uSpin;
-  float core = exp(-pow((d - uR) * 14., 2.));
-  float glow = exp(-pow((d - uR) * 3.2, 2.)) * .16;
-  // Deux arcs pleins, posés juste à l'intérieur de l'anneau : des segments, pas des rayons.
-  float seg = smoothstep(.55, .75, sin(ang * 2.)) * exp(-pow((d - uR + .16) * 26., 2.)) * .6;
-  vec3 c = mix(uTint, vec3(1.), core * .35);
-  gl_FragColor = vec4(c, (core + glow + seg) * uA);
-}`;
-// Piste d'arrivée : des cercles qui s'ouvrent sous la dernière étape, et une onde au moment de se poser.
-const padFragment = /* glsl */ `
-uniform vec3 uTint; uniform float uA; uniform float uTime; uniform float uLand;
-varying vec2 vUv;
-void main(){
-  // Un seul anneau fin et immobile (aucune onde qui rayonne), qui s'éclaire un peu à l'arrivée.
-  vec2 p = (vUv - .5) * 8.; float d = length(p);
-  float base = exp(-pow((d - 1.6) * 16., 2.));
-  float disc = (1. - smoothstep(0., 2.4, d)) * .05;
-  gl_FragColor = vec4(mix(uTint, vec3(1.), .3), (base * (.42 + uLand * .5) + disc) * uA * (1. - smoothstep(3.4, 3.95, d)));
-}`;
-const quadVertex = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }';
 
 export function initWorld(canvas, { reduced = false, onQuality = null, onFrame = null, seed = 0 } = {}) {
   const renderer = new WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
@@ -923,24 +941,11 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
   const sky = new Points(skyGeo, new ShaderMaterial({ vertexShader: skyVertex, fragmentShader: skyFragment, uniforms: skyU, transparent: true, depthWrite: false, blending: AdditiveBlending }));
   sky.frustumCulled = false; sky.renderOrder = -2; scene.add(sky);
 
-  // Portes : une entre chaque étape où l'on voyage, tirées d'une petite réserve de quatre anneaux.
-  // Leur couleur est refroidie vers le bleu (jamais un anneau orangé lumineux) ; leurs arcs glissent plus vite à chaque niveau.
-  const GATES = [], COOL = new Color('#7FB2FF');
-  for (let i = K.sphere; i < K.end; i++) {
-    if (!legOf(i)[1]) continue;
-    const dest = stationOf(TRACK[i + 1]), r = i === K.end - 1 ? 4.2 : 3.5;
-    GATES.push({ step: i, at: AT[i] + legOf(i)[0] * 0.88, tint: new Color(tintOf(TRACK[i + 1])).lerp(COOL, 0.45), r, spin: (i * 1.7) % TAU, speed: 0.12 + 0.06 * (dest ? dest.level : 6), label: TRACK[i + 1] });
-  }
-  const gatePool = [0, 1, 2, 3].map(() => {
-    const m = new ShaderMaterial({ vertexShader: quadVertex, fragmentShader: gateFragment, transparent: true, depthWrite: false, blending: AdditiveBlending,
-      uniforms: { uTint: { value: new Color() }, uA: { value: 0 }, uTime: uniforms.uTime, uR: { value: 3.5 }, uSpin: { value: 0 } } });
-    const g = new Mesh(new PlaneGeometry(1, 1), m); g.renderOrder = -1; g.visible = false; scene.add(g); return g;
-  });
-  // Piste d'arrivée, à plat sous la dernière étape.
-  const padMat = new ShaderMaterial({ vertexShader: quadVertex, fragmentShader: padFragment, transparent: true, depthWrite: false, blending: AdditiveBlending,
-    uniforms: { uTint: { value: new Color('#5C9BFF') }, uA: { value: 0 }, uTime: uniforms.uTime, uLand: { value: 0 } } });
-  const pad = new Mesh(new PlaneGeometry(8, 8), padMat); pad.rotation.x = -Math.PI / 2; pad.renderOrder = -1; pad.visible = false; scene.add(pad);
-  const PAD_AT = AT[K.end] + 7.2;
+  // Seuils des sauts : un point invisible sur la route, entre deux étapes où l'on voyage. Il n'y a plus d'anneau
+  // à l'écran (il restait trop longtemps et se lisait comme un halo rond) : le franchissement ne donne qu'un bref
+  // étirement des traînées, et prévient la page (événement « saut:seuil »).
+  const GATES = [];
+  for (let i = K.sphere; i < K.end; i++) if (legOf(i)[1]) GATES.push({ at: AT[i] + legOf(i)[0] * 0.88, label: TRACK[i + 1] });
 
   // ---------- Mise en place selon la taille de l'écran ----------
   const view = { hw: 3.6, hh: 2.27, mobile };
@@ -1003,7 +1008,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
   // ---------- Boucle ----------
   let running = true, raf = 0, last = performance.now(), time = 0, kT = 0, kS = 0, vel = 0, dim = 1;
   let travel = 0, lastTravel = 0, warp = 0, drift = 0, calm = false, land = 0, landed = false, prevK = 0;
-  // era : étalonnage en cours · kick : les deux ou trois images d'étirement au franchissement d'une porte · seg : passage en cours.
+  // era : étalonnage en cours · kick : les deux ou trois images d'étirement au franchissement d'un seuil · seg : passage en cours.
   let era = 1, kick = 0, seg = { i: 0, f: 0, a: TRACK[0], b: TRACK[1], flight: 0 };
   const tint = new Color(), cA = new Color(), cB = new Color();
   const apply = (k) => {
@@ -1019,8 +1024,6 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     // L'étalonnage : 0 pour le travail manuel d'aujourd'hui, 1 pour le futur automatisé.
     era = lerp(A.old ? 0 : 1, B.old ? 0 : 1, f * f * (3 - 2 * f));
     skyU.uEra.value = era;
-    // Le manuel saccade jusque dans le balancement de la sculpture.
-    const tq = era < 0.5 ? Math.floor(time * 12) / 12 : time;
     seg = { i, f, a: TRACK[i], b: TRACK[i + 1], flight };
     uniforms.uFlight.value = flight;
     // La caméra plonge un peu, s'incline dans le virage et ouvre son champ pendant la traversée.
@@ -1032,7 +1035,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
     const z = lerp(pa[2], pb[2], e) + mid * 0.9 * (1 - flight);
     rig.position.set(lerp(pa[0], pb[0], e), lerp(pa[1], pb[1], e), z);
-    rig.rotation.set(lerp(pa[3], pb[3], e) + ndc.y * -0.1, lerp(pa[4], pb[4], e) + Math.sin(tq * 0.32) * lerp(A.sway, B.sway, e) + ndc.x * 0.16, lerp(pa[5], pb[5], e));
+    rig.rotation.set(lerp(pa[3], pb[3], e) + ndc.y * -0.1, lerp(pa[4], pb[4], e) + Math.sin(time * 0.32) * lerp(A.sway, B.sway, e) + ndc.x * 0.16, lerp(pa[5], pb[5], e));
     const s = lerp(pa[6], pb[6], e); rig.scale.setScalar(s);
     uniforms.uFade.value = lerp(A.fade, B.fade, e) * dim;
     uniforms.uFocus.value = camera.position.z - z;
@@ -1043,22 +1046,7 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     // Le décor suit la distance parcourue.
     skyU.uTravel.value = travel; skyU.uDrift.value = drift; skyU.uFade.value = dim * (0.75 + 0.25 * lerp(A.fade, B.fade, e));
     cA.set(tintOf(TRACK[i])); cB.set(tintOf(TRACK[i + 1])); skyU.uTint.value.copy(cA).lerp(cB, e);
-    let g = 0;
-    for (const G of GATES) {
-      const dz = G.at - travel;
-      if (dz < 0.05 || dz > DEEP || g >= gatePool.length) continue;
-      const m = gatePool[g++], lit = G.step === i ? Math.min(1, f / 0.25) : 0;
-      m.visible = true; m.position.set(bend(G.at) - bend(travel), 0, 7.2 - dz); m.scale.setScalar((G.r + 0.7) * 2);
-      m.material.uniforms.uTint.value.copy(G.tint); m.material.uniforms.uR.value = G.r; m.material.uniforms.uSpin.value = G.spin + time * G.speed;
-      // Au repos, aucune porte n'est visible ; elle s'allume quand on part, et le couloir apparaît pendant la traversée.
-      m.material.uniforms.uA.value = Math.min(1, lit *(0.22 + 0.78 * (1 - smoothstep(4, 13, dz))) + 0.3 * swing) * (1 - smoothstep(DEEP * 0.45, DEEP, dz)) * smoothstep(0.3, 2.6, dz) * dim * (calm ? 0.4 : 1);
-    }
-    for (; g < gatePool.length; g++) gatePool[g].visible = false;
-    const pz = PAD_AT - travel;
-    pad.visible = pz > 1 && pz < DEEP;
-    if (pad.visible) { pad.position.set(bend(PAD_AT) - bend(travel), -2.05, 7.2 - pz); padMat.uniforms.uA.value = (1 - smoothstep(DEEP * 0.4, DEEP, pz)) * (0.3 + 0.3 * (1 - smoothstep(7.4, 20, pz))) * dim; padMat.uniforms.uLand.value = land; }
   };
-  const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
   // Mesure de la fluidité : si l'appareil peine, on allège tout seul.
   let level = 0, acc = 0, frames = 0, warm = 0;
@@ -1083,12 +1071,12 @@ export function initWorld(canvas, { reduced = false, onQuality = null, onFrame =
     kS += (kT - kS) * (1 - Math.exp(-dt * rate)); if (Math.abs(kT - kS) < 1e-4) kS = kT;
     camera.position.x += (ndc.x * 0.5 - camera.position.x) * 0.04; camera.position.y += (ndc.y * 0.32 - camera.position.y) * 0.04;
     if (!calm) drift += dt * 0.6;
-    // Arrivée au contact : une onde part de la sphère, la piste s'illumine.
+    // Arrivée au contact : une onde part de la sphère et la lumière diffuse s'avive un instant.
     if (!landed && kS >= K.end - 0.02 && prevK < K.end - 0.02 && kS > prevK && !calm) { landed = true; land = 1; uniforms.uPulsePos.value.copy(rig.position); pulse = 1; }
     if (kS < K.end - 0.3) landed = false;
     land = Math.max(0, land - dt * 0.45); prevK = kS;
     apply(kS);
-    // Franchissement d'une porte : un étirement très bref et peu contrasté, jamais un flash.
+    // Franchissement d'un seuil : un étirement très bref et peu contrasté, jamais un flash.
     let crossed = null;
     if (!calm && travel !== lastTravel) for (const G of GATES) if ((lastTravel < G.at && travel >= G.at) || (lastTravel > G.at && travel <= G.at)) { crossed = G; kick = 1; }
     kick = Math.max(0, kick - dt * 18);
