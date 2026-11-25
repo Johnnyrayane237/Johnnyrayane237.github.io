@@ -238,6 +238,19 @@ main, .header { position: relative; z-index: 2; }
 .case__n { color: var(--accent); }
 .case__title { font-size: clamp(2.6rem, 9vw, 9rem); font-weight: 800; letter-spacing: -.055em; line-height: .9; margin: 14px 0 18px; }
 .case__sub { font-family: var(--serif); font-style: italic; font-size: clamp(1.4rem, 2.6vw, 2.4rem); color: var(--accent-2); }
+/* En tête de fiche : le titre à gauche, l'objet de verre à droite, dans sa propre colonne (jamais derrière le texte). */
+.case__head { display: grid; grid-template-columns: minmax(0, 1fr) clamp(220px, 27vw, 400px); gap: clamp(16px, 3vw, 48px); align-items: center; }
+.case__head .case__title { font-size: clamp(2.6rem, 7vw, 7.6rem); overflow-wrap: anywhere; }
+.case__glass { position: relative; aspect-ratio: 1; touch-action: pan-y; }
+.case__glass .glass__gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; opacity: 0; transition: opacity .9s var(--ease); }
+.case__glass .glass__gl:active { cursor: grabbing; }
+.case__glass.is-ready .glass__gl { opacity: 1; }
+.case__glass-hint { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); pointer-events: none; opacity: 0; transition: opacity .6s .5s; }
+.case__glass.is-ready .case__glass-hint { opacity: .8; }
+@media (max-width: 760px) {
+  .case__head { grid-template-columns: 1fr; }
+  .case__glass { width: min(64vw, 260px); justify-self: center; margin-top: 4px; }
+}
 .case__grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: clamp(24px, 5vw, 80px); margin-top: clamp(36px, 5vw, 70px); }
 .case__summary { font-size: clamp(1.15rem, 1.8vw, 1.6rem); line-height: 1.35; letter-spacing: -.01em; }
 .case__img { border-radius: 14px; border: 1px solid var(--line); margin-top: 28px; width: 100%; }

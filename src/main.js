@@ -495,11 +495,19 @@ lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeVide
 
 // ---------- Fiche projet ----------
 const caseEl = $('#case'), caseBody = $('#caseBody');
+// L'objet de verre du projet, en tête de fiche : son code (et three.js pour lui) n'est téléchargé qu'à la première fiche ouverte.
+let glassP = null;
+const showGlass = (id, color) => {
+  const host = $('#caseBody .case__glass'); if (!host) return;
+  glassP ||= import('./glass.js').then((m) => m.initGlass({ reduced, calm: () => document.documentElement.classList.contains('fx-off') })).catch(() => { glassP = null; return null; });
+  glassP.then((g) => g?.show(host, id, color)).catch(() => {});
+};
 function renderCase(id) {
   const i = L.projects.findIndex((p) => p.id === id), p = L.projects[i], next = L.projects[(i + 1) % L.projects.length];
   const st = STATIONS.find((s) => s.project === id), ss = st ? shownStatus(st) : null;
-  caseBody.innerHTML = `<p class="case__n mono">${pad(i + 1)} / ${pad(L.projects.length)}${st ? ` · <span class="badge badge--${ss}">${esc(HZ.status[ss])}</span>` : ''}</p>
-    <h2 class="case__title" id="caseTitle">${esc(p.title)}</h2><p class="case__sub">${esc(p.sub)}</p>
+  caseBody.innerHTML = `<header class="case__head"><div><p class="case__n mono">${pad(i + 1)} / ${pad(L.projects.length)}${st ? ` · <span class="badge badge--${ss}">${esc(HZ.status[ss])}</span>` : ''}</p>
+    <h2 class="case__title" id="caseTitle">${esc(p.title)}</h2><p class="case__sub">${esc(p.sub)}</p></div>
+    <div class="case__glass" aria-hidden="true"><span class="case__glass-hint mono">${esc(T['case.glass'])}</span></div></header>
     <div class="case__grid"><div><p class="case__summary">${esc(p.summary)}</p>${p.img ? `<img class="case__img" src="${p.img}" alt="${esc(p.title)}" />` : ''}
       <div class="case__links">${p.links.map(([t, u]) => `<a class="btn btn--primary" href="${u}"${u.startsWith('#') ? '' : ' target="_blank" rel="noopener"'}><span class="btn__fill"></span><span>${esc(t)}</span><span class="btn__arrow">→</span></a>`).join('')}
         <button class="btn" type="button" data-next="${next.id}"><span class="btn__fill"></span><span>${esc(T['case.next'])} — ${esc(next.title)}</span><span class="btn__arrow">→</span></button></div></div>
@@ -507,7 +515,8 @@ function renderCase(id) {
         <h4>${esc(T['case.stack'])}</h4><div class="case__stack">${p.stack.map((s) => `<i class="tag">${esc(s)}</i>`).join('')}</div>
         <h4>${esc(T['case.built'])}</h4><ul class="case__built">${p.built.map((b) => `<li>${esc(b)}</li>`).join('')}</ul></div>${renderFeatures(lang, p.id)}</div>`;
   $('.case__scroll').scrollTop = 0;
-  if (!reduced) gsap.from('#caseBody .case__n, #caseBody .case__title, #caseBody .case__sub, #caseBody .case__summary, #caseBody .case__img, #caseBody .metric, #caseBody .case__built li, #caseBody .case__links, #caseBody .feat', { y: 40, opacity: 0, duration: 0.9, stagger: 0.04, ease: 'expo.out', delay: 0.15 });
+  showGlass(p.id, st?.color);
+  if (!reduced) gsap.from('#caseBody .case__n, #caseBody .case__title, #caseBody .case__sub, #caseBody .case__glass, #caseBody .case__summary, #caseBody .case__img, #caseBody .metric, #caseBody .case__built li, #caseBody .case__links, #caseBody .feat', { y: 40, opacity: 0, duration: 0.9, stagger: 0.04, ease: 'expo.out', delay: 0.15 });
 }
 // La fiche se déplie depuis le bouton cliqué : son rectangle grandit jusqu'à remplir l'écran,
 // puis s'y replie à la fermeture (s'il est encore à l'écran ; sinon le rideau redescend, comme avant).
@@ -530,6 +539,7 @@ function openCase(id, from = null) {
 }
 function closeCase() {
   if (!caseOpen) return; caseOpen = false; caseEl.setAttribute('aria-hidden', 'true');
+  glassP?.then((g) => g?.stop());
   const back = !reduced && onScreen(caseFrom);
   const tl = gsap.timeline({ onComplete: () => { gsap.set(caseEl, { visibility: 'hidden' }); gsap.set('.case__curtain', { clearProps: 'clipPath' }); lenis?.start(); lastFocus?.focus?.(); } })
     .to('.case__scroll', { clipPath: 'inset(0 0 100% 0)', duration: reduced ? 0 : 0.6, ease: 'expo.inOut' });
