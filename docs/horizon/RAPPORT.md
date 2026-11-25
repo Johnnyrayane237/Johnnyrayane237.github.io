@@ -33,7 +33,7 @@ Aucune année n'est affichée dans le voyage. Aucun effet ancien : ni cadran, ni
 - Poids : la salle des agents se charge à l'approche (paquet de départ 830 Ko au lieu de 894, soit 246 Ko compressés au lieu de 266).
 - Correctif : la page pouvait rester bloquée en plein voyage au défilement (la mesure de hauteur de Lenis était périmée).
 
-### Animations 2D, 3D et 4D ajoutées le 25 novembre (pas encore en ligne)
+### Animations 2D, 3D et 4D ajoutées le 25 novembre (en ligne depuis le 25 novembre)
 
 - **2D** : les chiffres clés défilent en rouleau jusqu'à leur valeur ; à la bascule, la tâche d'aujourd'hui se barre puis « Demain · automatisé » s'écrit lettre après lettre ; la fiche projet se déplie depuis le bouton cliqué.
 - **Chiffres reliés à la sculpture** : survoler (ou toucher) un chiffre éclaire la partie de la sculpture qu'il raconte, le reste s'efface à moitié. Ex. « 74 → 34 » éclaire la pile des offres retenues, « 0,07 $ » la file des offres lues.
@@ -80,5 +80,5 @@ Aucune année n'est affichée dans le voyage. Aucun effet ancien : ni cadran, ni
 7. **Capture du portfolio dans l'atelier** : à refaire après la mise en ligne, pour montrer la nouvelle version.
 8. **Mini-salle des agents sur l'accueil** : pas faite (idée du storyboard). On la garde pour plus tard ?
 9. **Higgsfield** : abandonné. Le renouvellement automatique a été annulé le 24 novembre à ta demande : aucun prélèvement de 75 €, l'essai s'arrête tout seul le 27 novembre à 22 h 04 (heure de Paris).
-10. **Publication** : faite le 25 novembre. Les retouches qui ont suivi ta relecture sont sur la branche `voyage-futur`, **pas encore en ligne** : il faut ton accord pour republier (`npm run publier` dans `portfolio-futur`).
+10. **Publication** : faite le 25 novembre, puis republiée le même jour avec les retouches de ta relecture et les animations 2D, 3D et 4D (à ta demande). Les deux adresses ont été vérifiées. Pour republier plus tard : `npm run publier` dans `portfolio-futur`, avec ton accord.
 11. **Branche `source`** : elle contient encore l'ancien code. Je peux l'avancer jusqu'à `voyage-futur` (simple avance, sans réécrire l'historique) pour que le dépôt montre le code du site en ligne.
