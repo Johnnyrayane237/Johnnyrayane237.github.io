@@ -13,7 +13,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const VOICE_ORB = [-1.3, 0.05, 0];
 
 // Ordre du voyage : la valeur « k » avance le long de cette piste.
-export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'devis', 'sms', 'voice', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
+export const TRACK = ['cloud', 'name', 'sphere', 'terrain', 'rapport', 'devis', 'sms', 'voice', 'wave', 'radar', 'switch', 'server', 'invoice', 'film', 'dim', 'caps', 'path', 'end'];
 export const K = Object.fromEntries(TRACK.map((n, i) => [n, i]));
 
 // ---------- Hasard reproductible ----------
@@ -180,6 +180,72 @@ const SHAPES = {
       }
     }
     b.ring(b.n(0.03), [0, -1.5, 0], 1.7, 'xz', 0, 0.012, 4);
+    return b.done();
+  },
+  // Rapport du lundi : les lignes du fichier défilent vers une porte de contrôle ; les lignes fautives tombent dans un bac,
+  // les autres nourrissent le rapport : les 4 chiffres clés s'allument, la courbe se trace, chaque nombre du commentaire
+  // est vérifié l'un après l'autre, puis le sceau « vérifié » se pose dans le coin de la feuille.
+  // prm : 0–0,9 lignes du fichier (couloir × 0,15 + position × 0,14 ; ton 0,15 = ligne fautive) · 1–1,3 chiffres clés
+  // · 1,75 porte de contrôle · 2–2,5 courbe · 3–3,5 nombres vérifiés · 4 sceau · 4,5 éclat du sceau · 5 structure calme (5,1 : en-tête).
+  rapport(N) {
+    const b = builder(N, 151), CX = 0.55, CY = 0.05, W = 1.4, H = 2.05, z = 0.04, GX = -0.5;
+    const L = CX - 0.56, R = CX + 0.56, SEAL = [1.18, 0.95];
+    const outline = (n, w, h, r, cx, cy, zz, tone, prm, wj = 0.008) => { for (let k = 0; k < n; k++) { const q = rrPoint(b.rnd(), w, h, r); b.put(cx + q[0] + b.j(wj), cy + q[1] + b.j(wj), zz + b.j(wj), tone, prm); } };
+    // La feuille, et une seconde page en retrait pour la profondeur.
+    outline(b.n(0.07), W, H, 0.07, CX, CY, 0, 0, 5);
+    outline(b.n(0.028), W, H, 0.07, CX + 0.1, CY - 0.1, -0.16, 0, 5);
+    // En-tête : le titre, la semaine, puis le filet.
+    b.line(b.n(0.012), [L, 0.9, z], [L + 0.5, 0.9, z], 0, 0.022, 5.1, 5.1);
+    b.line(b.n(0.005), [L, 0.81, z], [L + 0.26, 0.81, z], 0, 0.008, 5, 5);
+    b.line(b.n(0.01), [L, 0.73, z], [R, 0.73, z], 0, 0.006, 5, 5);
+    // Les 4 chiffres clés : le cadre, le libellé, puis la valeur en accent, allumés l'un après l'autre.
+    [[-1, 0.52], [1, 0.52], [-1, 0.2], [1, 0.2]].forEach(([sx, y], k) => {
+      const x = CX + sx * 0.29, prm = 1 + k * 0.1;
+      outline(b.n(0.014), 0.52, 0.27, 0.04, x, y, z, 0, 5, 0.005);
+      b.line(b.n(0.004), [x - 0.2, y + 0.07, z], [x - 0.04, y + 0.07, z], 0, 0.006, 5, 5);
+      b.line(b.n(0.013), [x - 0.2, y - 0.04, z], [x + 0.12, y - 0.04, z], 1, 0.028, prm, prm);
+    });
+    // La courbe des 8 semaines, la dernière en léger recul ; l'axe reste calme.
+    b.line(b.n(0.008), [L, -0.44, z], [R, -0.44, z], 0, 0.005, 5, 5);
+    const wk = [0.35, 0.5, 0.42, 0.62, 0.55, 0.78, 0.86, 0.8];
+    const cv = (t) => { const f = t * 7, i = Math.min(6, Math.floor(f)), u = f - i, e = u * u * (3 - 2 * u); return [L + 0.04 + t * 1.04, -0.42 + lerp(wk[i], wk[i + 1], e) * 0.4, z]; };
+    b.curve(b.n(0.03), cv, 1, 0.012, 2, 2.5);
+    wk.forEach((_, i) => { const c = cv(i / 7); for (let q = 0, n = b.n(0.002); q < n; q++) b.put(c[0] + b.j(0.03), c[1] + b.j(0.03), z, 1, 2 + (i / 7) * 0.5); });
+    // Le commentaire de l'IA : trois lignes de texte ; chaque nombre cité (accent) est retrouvé dans les calculs.
+    const toks = [[0.22, 0.62], [0.08, 0.5, 0.82], [0.36]];
+    let nk = 0;
+    [-0.56, -0.69, -0.82].forEach((y, r) => {
+      const wl = (R - L) * (r === 2 ? 0.7 : 1), tk = toks[r].map((f) => f * (R - L));
+      for (let x = 0, w = 0; x < wl; w++) {
+        const a = x, e = Math.min(wl, x + 0.05 + ((w * 37 + r * 11) % 7) * 0.016);
+        x = e + 0.035;
+        if (tk.some((c) => a < c + 0.08 && e > c - 0.08)) continue;
+        b.line(Math.max(2, Math.round((b.n(0.0012) * (e - a)) / 0.1)), [L + a, y, z], [L + e, y, z], 0, 0.01, 5, 5);
+      }
+      tk.forEach((c) => { const prm = 3 + nk++ * 0.1; b.line(b.n(0.006), [L + c - 0.065, y, z], [L + c + 0.065, y, z], 1, 0.018, prm, prm); });
+    });
+    // Le sceau « vérifié » : deux anneaux et une coche, posé sur le coin de la feuille.
+    b.ring(b.n(0.014), [SEAL[0], SEAL[1], z + 0.03], 0.17, 'xy', 1, 0.008, 4);
+    b.ring(b.n(0.009), [SEAL[0], SEAL[1], z + 0.03], 0.13, 'xy', 1, 0.006, 4);
+    const tick = [[SEAL[0] - 0.07, SEAL[1]], [SEAL[0] - 0.02, SEAL[1] - 0.055], [SEAL[0] + 0.075, SEAL[1] + 0.06]];
+    for (let k = 0, n = b.n(0.009); k < n; k++) { const t = b.rnd(), sg = t < 0.35 ? 0 : 1, f = sg ? (t - 0.35) / 0.65 : t / 0.35, A = tick[sg], B = tick[sg + 1]; b.put(lerp(A[0], B[0], f) + b.j(0.008), lerp(A[1], B[1], f) + b.j(0.008), z + 0.04, 1, 4); }
+    b.ring(b.n(0.014), [SEAL[0], SEAL[1], z + 0.03], 0.17, 'xy', 1, 0.008, 4.5);
+    // Le fichier brut : six couloirs de lignes qui défilent vers la porte ; certaines sont fautives (ton 0,15).
+    const X0 = -1.65, X1 = GX - 0.05;
+    for (let l = 0; l < 6; l++) {
+      const y = 0.58 - l * 0.2, cnt = 5;
+      for (let q = 0, n = b.n(0.03); q < n; q++) {
+        const wi = Math.floor(b.rnd() * cnt), u = b.rnd() * 0.62, t = (wi + u) / cnt, bad = (wi * 3 + l * 2) % 7 === 2;
+        if ((u * 9) % 2.1 > 1.85) continue; // les séparations entre cellules
+        b.put(lerp(X0, X1, t) + b.j(0.006), y + b.j(0.02), 0.1 + b.j(0.02), bad ? 0.15 : 0, l * 0.15 + t * 0.14);
+      }
+    }
+    // La porte de contrôle, ses butées, et le bac des lignes écartées en dessous.
+    b.line(b.n(0.025), [GX, -0.62, 0.1], [GX, 0.74, 0.1], 1, 0.012, 1.75, 1.75);
+    b.line(b.n(0.004), [GX - 0.08, 0.74, 0.1], [GX + 0.08, 0.74, 0.1], 1, 0.008, 1.75, 1.75);
+    b.line(b.n(0.004), [GX - 0.08, -0.62, 0.1], [GX + 0.08, -0.62, 0.1], 1, 0.008, 1.75, 1.75);
+    outline(b.n(0.012), 0.42, 0.14, 0.03, GX - 0.12, -0.98, 0.1, 0, 5, 0.005);
+    b.ring(b.n(0.03), [-0.1, -1.32, 0], 1.65, 'xz', 0, 0.012, 5);
     return b.done();
   },
   // Devis IA : la demande du client coule vers la feuille ; le devis s'écrit ligne par ligne, prix et total en couleur d'accent ;
@@ -410,6 +476,7 @@ const STOPS = {
   name: { shape: 'name', fx: 0, col: ['#DCE8FF', '#2F80FF'], fade: 0.95, halo: 0.2, sway: 0.05, pose: (v) => [0, v.mobile ? 0.25 : 0.05, 0, 0, 0, 0, v.hw * 0.9] },
   sphere: { shape: 'sphere', fx: 1, col: ['#2F80FF', '#EAF1FF'], fade: 1, halo: 1, sway: 0, pose: (v) => [0, 0, 0, 0, 0, 0.18, v.mobile ? 0.77 : 1] },
   terrain: { shape: 'terrain', fx: 2, col: ['#2F80FF', '#EAF1FF'], fade: 0.42, halo: 0, sway: 0, pose: () => [0, 0, 0, 0.55, 0, 0.18, 1] },
+  rapport: { shape: 'rapport', fx: 14, col: ['#2F80FF', '#FFD84D'], fade: 1, halo: 0.35, sway: 0.2, pose: (v) => side(v, 0.1, -0.5, 0.95) },
   devis: { shape: 'devis', fx: 13, col: ['#2F80FF', '#D2F65A'], fade: 1, halo: 0.35, sway: 0.2, pose: (v) => side(v, 0.1, -0.5, 0.95) },
   sms: { shape: 'sms', fx: 12, col: ['#2F80FF', '#FF7AD9'], fade: 1, halo: 0.35, sway: 0.2, pose: (v) => side(v, 0.06, -0.36, 0.92) },
   voice: { shape: 'voice', fx: 11, col: ['#2F80FF', '#C49BFF'], fade: 1, halo: 0.35, sway: 0.18, pose: (v) => side(v, 0.06, -0.42, 0.95) },
@@ -507,6 +574,56 @@ vec3 life(vec3 p, vec2 meta, float id, out float glow){
   } else if (id < 9.5) {
     p.xy = rot(sin(uTime * .2) * .12) * p.xy;
     if (tone > .5) glow = .3 + .35 * sin(uTime * 2. + aRand.x * 30.); else glow = pow(fract(prm - uTime * .35), 6.) * 1.6;
+  } else if (id > 13.5) {
+    // Rapport du lundi (cycle d'environ 11 s) : les lignes du fichier passent la porte de contrôle, les fautives tombent dans le bac ;
+    // les chiffres clés s'allument, la courbe se trace, chaque nombre du commentaire est vérifié, puis le sceau se pose.
+    float s = fract(uTime * .09), fin = 1. - smoothstep(.95, 1., s);
+    vec2 C = vec2(1.18, .95);
+    if (prm > 4.9) glow = (prm > 5.05 ? .3 : .08) + .08 * sin(uTime * .8 + p.y * 3.);
+    else if (prm > 4.4) {
+      float d = clamp((s - .86) / .09, 0., 1.), act = step(.86, s) * (1. - step(.999, d));
+      p.xy = C + (p.xy - C) * (act > .5 ? 1. + d * 2.4 : 0.);
+      p.z -= (1. - act) * .4;
+      glow = act > .5 ? (1. - d) * 1.8 - .3 : -5.;
+    }
+    else if (prm > 3.9) {
+      float on = smoothstep(.84, .88, s) * fin;
+      p.xy = C + (p.xy - C) * (1. + (1. - on) * .45);
+      p.z += (1. - on) * .2;
+      glow = mix(-.62, .7 + .3 * sin(uTime * 4.), on) + smoothstep(.84, .86, s) * (1. - smoothstep(.86, .93, s)) * 1.3;
+    }
+    else if (prm > 2.9) {
+      float k = floor((prm - 3.) * 10. + .5), st = .5 + k * .05, on = smoothstep(st, st + .02, s) * fin;
+      glow = mix(-.55, .7 + .25 * sin(uTime * 3. + k), on) + smoothstep(st, st + .01, s) * (1. - smoothstep(st + .01, st + .08, s)) * 1.6;
+    }
+    else if (prm > 1.9) {
+      float f = (prm - 2.) * 2., st = .3 + f * .14, on = smoothstep(st, st + .015, s) * fin;
+      p.y -= (1. - on) * .05;
+      glow = mix(-.7, .5 + .2 * sin(uTime * 2. + f * 6.), on) + smoothstep(st, st + .01, s) * (1. - smoothstep(st + .01, st + .06, s)) * 1.2;
+    }
+    else if (prm > 1.65) {
+      float y = mix(.74, -.62, fract(uTime * .45));
+      glow = .45 + exp(-pow((p.y - y) * 7., 2.)) * 1.3;
+    }
+    else if (prm > .999) {
+      float k = floor((prm - 1.) * 10. + .5), st = .06 + k * .055, on = smoothstep(st, st + .02, s) * fin;
+      p.y -= (1. - on) * .04;
+      glow = mix(-.62, .65, on) + smoothstep(st, st + .01, s) * (1. - smoothstep(st + .01, st + .09, s)) * 1.5;
+    }
+    else {
+      // Les lignes avancent dans leur couloir ; à la porte, les bonnes entrent, les fautives sont écartées vers le bac.
+      float l = floor(prm / .15 + .001), t = (prm - l * .15) / .14, tt = fract(t + uTime * .07);
+      p.x += (tt - t) * 1.1;
+      float env = smoothstep(0., .1, tt);
+      if (abs(tone - .15) < .05) {
+        float d = smoothstep(.84, 1., tt);
+        p.y -= d * d * (1.53 - l * .2);
+        p.x += d * .12;
+        glow = mix(-.7, .45, env * (1. - smoothstep(.96, 1., tt))) + smoothstep(.78, .88, tt) * (1. - smoothstep(.95, 1., tt)) * 1.3;
+      } else {
+        glow = mix(-.7, .35, env * (1. - smoothstep(.9, 1., tt)));
+      }
+    }
   } else if (id > 12.5) {
     // Devis IA (cycle d'environ 11 s) : la demande coule vers la feuille, le devis s'écrit ligne par ligne, le total s'allume,
     // les trois relances partent en éventail, puis la case « Bon pour accord » se coche.

@@ -273,7 +273,7 @@ function measureStages() {
     const r = sr.left + Math.max(...kids.map((c) => c.offsetLeft + c.offsetWidth)) + 28;
     const beside = { x: r, y: top, w: stage.right - r, h: bottom - top };
     const above = { x: stage.left, y: Math.min(top, 64), w: stage.width, top: true }; above.h = t - above.y;
-    out[TRACK[K.devis + i]] = fit(beside) >= fit(above) ? beside : above;
+    out[TRACK[K.rapport + i]] = fit(beside) >= fit(above) ? beside : above;
   });
   hero.stages = out;
 }

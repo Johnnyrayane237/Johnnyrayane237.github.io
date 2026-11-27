@@ -73,6 +73,17 @@ export const hood = {
 // « Sous le capot » dans les fiches projet
 export const features = {
   fr: {
+    'rapport-lundi': [
+      ['Chaque erreur trouvée', "Doublons, dates ou régions manquantes, quantités négatives, virgule oubliée : 6 règles passent sur chaque ligne du fichier."],
+      ['Chaque décision notée', 'Retirée, corrigée, gardée ou exclue : chaque ligne touchée apparaît dans le rapport avec son numéro de commande.'],
+      ["L'erreur évitée, chiffrée", "Le rapport montre ce que le fichier brut aurait annoncé : 126 196 € et +47 %, au lieu de 83 957 € et −2,2 %."],
+      ["L'IA ne calcule rien", "Claude reçoit seulement les chiffres déjà calculés par le code, et rédige le commentaire à partir d'eux."],
+      ['Chaque nombre vérifié', "Le script extrait chaque nombre du commentaire et le compare aux calculs ; un seul nombre inconnu, et le texte est rejeté."],
+      ['Visible à la lecture', "Dans le rapport, chaque nombre retrouvé est surligné ; au survol, une bulle indique d'où il vient."],
+      ['Le rapport part toujours', "Second essai si l'IA se trompe, puis un commentaire écrit par des règles fixes : jamais de rapport bloqué."],
+      ['Chaque lundi, sans y penser', 'GitHub Actions lance les tests puis le rapport ; si un test échoue, rien ne part.'],
+      ['Prêt pour Power BI', 'Les mêmes données, déjà propres, sortent en 4 fichiers pour le tableau de bord.'],
+    ],
     devis: [
       ['Devis en moins d’une minute', "Une demande en texte libre devient un devis ligne par ligne, avec les hypothèses de l'IA et les questions à poser au client."],
       ['Aucun prix inventé', "L'IA ne voit jamais les prix : elle choisit des ouvrages dans la grille de l'entreprise, et le code calcule chaque montant."],
@@ -134,6 +145,17 @@ export const features = {
     ],
   },
   en: {
+    'rapport-lundi': [
+      ['Every error found', 'Duplicates, missing dates or regions, negative quantities, a forgotten decimal point: 6 rules run on every line of the file.'],
+      ['Every decision logged', 'Removed, corrected, kept or excluded: every line touched appears in the report with its order number.'],
+      ['The avoided error, measured', 'The report shows what the raw file would have claimed: €126,196 and +47%, instead of €83,957 and −2.2%.'],
+      ['The AI calculates nothing', 'Claude only receives the figures already calculated by the code, and writes the commentary from them.'],
+      ['Every number checked', 'The script extracts every number from the commentary and compares it with the calculations; one unknown number and the text is rejected.'],
+      ['Visible when reading', 'In the report, every number found is highlighted; on hover, a tooltip shows where it comes from.'],
+      ['The report always goes out', 'A second try if the AI gets it wrong, then a commentary written by fixed rules: never a blocked report.'],
+      ['Every Monday, hands-free', 'GitHub Actions runs the tests, then the report; if a test fails, nothing is sent.'],
+      ['Ready for Power BI', 'The same data, already clean, comes out as 4 files for the dashboard.'],
+    ],
     devis: [
       ['A quote in under a minute', 'A free-text request becomes a line-by-line quote, with the AI’s assumptions and the questions to ask the customer.'],
       ['No invented prices', 'The AI never sees prices: it picks items from the company’s price list, and code calculates every amount.'],

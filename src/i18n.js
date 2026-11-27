@@ -6,6 +6,7 @@ const AIG = 'https://johnnyrayane237.github.io/aiguilleur/';
 const VOIX = 'https://github.com/Johnnyrayane237/standardiste-vocal-ia';
 const SMS = 'https://github.com/Johnnyrayane237/accueil-client-sms-ia';
 const DEVIS = 'https://github.com/Johnnyrayane237/devis-ia-relance-automatique';
+const RAPPORT = 'https://github.com/Johnnyrayane237/rapport-du-lundi-ia';
 
 export const content = {
   fr: {
@@ -70,7 +71,7 @@ export const content = {
         ['Lieu', 'Île-de-France ou à distance'],
         ['Formation', 'Bachelor informatique, 2e année — ESIIA, Torcy'],
       ],
-      stack: ['n8n', 'API Claude', 'Agents IA', 'Retell AI', 'Twilio', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
+      stack: ['n8n', 'Python', 'API Claude', 'Agents IA', 'Retell AI', 'Twilio', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
       cv: 'Télécharger le CV', mail: 'Écrire un e-mail', more: 'Voir tout le site', see: 'Voir le projet',
     },
     stats: [
@@ -80,6 +81,16 @@ export const content = {
       { n: 13, suffix: '/13', label: 'candidatures correctement vérifiées par JobHunter' },
     ],
     projects: [
+      {
+        id: 'rapport-lundi', short: 'Rapport IA', color: '#FFD84D', year: '2026', img: 'media/rapport-lundi.webp',
+        title: 'Le rapport du lundi qui se vérifie tout seul', sub: 'Des chiffres justes, un commentaire IA vérifié nombre par nombre',
+        tags: ['Python', 'pandas', 'API Claude', 'Power BI'],
+        summary: "Chaque lundi matin, l'export des ventes devient un rapport prêt à lire : les erreurs du fichier sont trouvées et écartées, les chiffres clés calculés, et l'IA rédige le commentaire. Avant l'envoi, chaque nombre de ce commentaire est comparé aux calculs : un seul chiffre inventé, et le texte est rejeté. Démo réalisée pour une entreprise fictive, adaptable à tout service qui fait un point chiffré chaque semaine.",
+        metrics: [['42 239 €', "d'erreurs écartées en une semaine : le rapport aurait annoncé +47 % au lieu de −2,2 %"], ['18/18', 'nombres du commentaire IA retrouvés dans les calculs, 0 inventé'], ['9', 'erreurs du fichier trouvées et traitées, chaque décision notée'], ['33', 'tests automatiques : si un seul échoue, rien ne part']],
+        built: ['6 contrôles : doublons, champs vides, région retrouvée par le code postal, valeurs impossibles, montant différent de quantité × prix', "L'erreur évitée chiffrée chaque semaine : le même calcul sur le fichier brut montre ce que les contrôles ont empêché", "Claude reçoit seulement les chiffres calculés ; un nombre inconnu dans sa réponse et c'est un second essai, puis un texte de secours : le rapport part toujours", 'Rapport HTML lisible dans un e-mail, chaque nombre relié à son origine ; 4 fichiers propres pour Power BI', 'Lancé chaque lundi par GitHub Actions après les tests, construit en pilotant Claude Code'],
+        stack: ['Python', 'pandas', 'API Claude', 'pytest', 'GitHub Actions', 'Power BI'],
+        links: [['Voir le code sur GitHub', RAPPORT]],
+      },
       {
         id: 'devis', short: 'Devis IA', color: '#D2F65A', year: '2026', img: 'media/devis.webp',
         title: 'Devis IA et relance automatique', sub: 'Chaque demande chiffrée, chaque devis relancé',
@@ -275,7 +286,7 @@ export const content = {
         ['Location', 'Paris region or remote'],
         ['Education', 'Bachelor in computer science, year 2 — ESIIA, Torcy'],
       ],
-      stack: ['n8n', 'Claude API', 'AI agents', 'Retell AI', 'Twilio', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
+      stack: ['n8n', 'Python', 'Claude API', 'AI agents', 'Retell AI', 'Twilio', 'Docker', 'PostgreSQL', 'Supabase', 'React', 'GSAP'],
       cv: 'Download my CV', mail: 'Send an email', more: 'See the whole site', see: 'See the project',
     },
     stats: [
@@ -285,6 +296,16 @@ export const content = {
       { n: 13, suffix: '/13', label: 'applications reviewed correctly by JobHunter' },
     ],
     projects: [
+      {
+        id: 'rapport-lundi', short: 'AI report', color: '#FFD84D', year: '2026', img: 'media/rapport-lundi.webp',
+        title: 'The Monday report that checks itself', sub: 'Accurate figures, an AI commentary checked number by number',
+        tags: ['Python', 'pandas', 'Claude API', 'Power BI'],
+        summary: 'Every Monday morning, the sales export becomes a ready-to-read report: errors in the file are found and set aside, key figures are calculated, and the AI writes the commentary. Before it goes out, every number in that commentary is checked against the calculations: one invented figure and the text is rejected. Demo built for a fictitious company, adaptable to any team that reviews its figures every week.',
+        metrics: [['€42,239', 'of errors set aside in one week: the report would have shown +47% instead of −2.2%'], ['18/18', 'numbers in the AI commentary found in the calculations, 0 invented'], ['9', 'file errors found and handled, every decision logged'], ['33', 'automated tests: if a single one fails, nothing is sent']],
+        built: ['6 checks: duplicates, empty fields, region recovered from the postcode, impossible values, amount different from quantity × price', 'The avoided error, measured every week: the same calculation on the raw file shows what the checks prevented', 'Claude only receives the calculated figures; an unknown number in its reply means a second try, then a fallback text: the report always goes out', 'HTML report readable in an email, every number linked to its source; 4 clean files for Power BI', 'Run every Monday by GitHub Actions after the tests, built by steering Claude Code'],
+        stack: ['Python', 'pandas', 'Claude API', 'pytest', 'GitHub Actions', 'Power BI'],
+        links: [['See the code on GitHub', RAPPORT]],
+      },
       {
         id: 'devis', short: 'AI quotes', color: '#D2F65A', year: '2026', img: 'media/devis.webp',
         title: 'AI quotes and automatic follow-up', sub: 'Every request priced, every quote followed up',
