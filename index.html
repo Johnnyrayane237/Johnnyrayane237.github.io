@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Johanne Pamegne — Automatisation & IA, motion design</title>
+  <meta name="description" content="Portfolio de Johanne Rayane Nkeuchatchou Pamegne : agents IA, workflows n8n, infrastructure auto-hébergée et motion design en code. Disponible en alternance ou stage alterné." />
+  <meta name="theme-color" content="#06070A" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Johanne Pamegne — Automatisation & IA, motion design" />
+  <meta property="og:description" content="Agents IA, workflows n8n, infrastructure auto-hébergée et motion design en code. Disponible en alternance." />
+  <meta property="og:image" content="./media/og.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="./favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"Person","name":"Johanne Rayane Nkeuchatchou Pamegne","alternateName":"Johanne Pamegne","jobTitle":"Alternant Automatisation & IA","email":"mailto:johannepamegne@gmail.com","address":{"@type":"PostalAddress","addressLocality":"Saint-Denis","addressCountry":"FR"},"sameAs":["https://github.com/Johnnyrayane237","https://www.linkedin.com/in/johanne-pamegne-2672b63b4"],"knowsAbout":["n8n","Agents IA","API Claude","Docker","PostgreSQL","Motion design","GSAP"]}
+  </script>
+  <script defer src="https://stats.vorchex.tech/script.js" data-website-id="a0f7794c-d814-4346-a4df-8fa1e4097102" data-domains="johanne.vorchex.tech,johnnyrayane237.github.io"></script>
+  <script type="module" crossorigin src="./assets/index-Cws2OlVT.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-7q9bgZob.css">
+</head>
+<body class="is-loading">
+  <a class="skip" href="#main" data-i18n="skip">Aller au contenu</a>
+
+  <!-- Écran de démarrage -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__grid"></div>
+    <ul class="loader__log mono">
+      <li><span>›</span> <span data-i18n="loader.1">démarrage de n8n</span></li>
+      <li><span>›</span> <span data-i18n="loader.2">connexion à Claude</span></li>
+      <li><span>›</span> <span data-i18n="loader.3">chargement des workflows</span> <b>32</b></li>
+      <li><span>›</span> <span data-i18n="loader.4">validation humaine : ok</span></li>
+    </ul>
+    <div class="loader__count"><span id="loaderCount">000</span><i>%</i></div>
+    <div class="loader__bar"><span id="loaderBar"></span></div>
+    <div class="loader__name mono">JRNP — Portfolio 2026</div>
+  </div>
+
+  <!-- Éléments fixes -->
+  <canvas class="gl" id="gl" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="cols" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="cursor" aria-hidden="true"><div class="cursor__dot"></div><div class="cursor__ring"><span class="cursor__label"></span></div></div>
+  <div class="preview" id="preview" aria-hidden="true"><div class="preview__inner"><img alt="" /></div></div>
+
+  <header class="header" id="header">
+    <a href="#top" class="brand" data-magnetic aria-label="Johanne Pamegne — accueil">
+      <svg viewBox="0 0 40 40" class="brand__mark" aria-hidden="true"><circle cx="20" cy="20" r="18.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M15 11v13.5a5 5 0 0 1-8.5 3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M22 29V11h5.5a5.2 5.2 0 0 1 0 10.4H22" fill="none" stroke="#2F80FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="brand__name">Johanne Pamegne</span>
+    </a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="#travaux" class="roll" data-i18n="nav.work">Travaux</a>
+      <a href="#pipeline" class="roll" data-i18n="nav.pipeline">Pipeline</a>
+      <a href="#motion" class="roll" data-i18n="nav.motion">Motion</a>
+      <a href="#parcours" class="roll" data-i18n="nav.path">Parcours</a>
+      <a href="#contact" class="roll" data-i18n="nav.contact">Contact</a>
+    </nav>
+    <div class="header__right">
+      <span class="status mono"><i class="pulse"></i><span data-i18n="status">Disponible — alternance ou stage alterné</span></span>
+      <button class="quick-top mono" type="button" data-quick data-magnetic><span data-i18n="quick.top">L'essentiel en 30 s</span></button>
+      <button class="lang mono" id="langBtn" type="button" data-magnetic aria-label="Switch to English"><span class="lang__on">FR</span><span class="lang__sep">/</span><span class="lang__off">EN</span></button>
+      <button class="menu-btn mono" id="menuBtn" type="button" aria-expanded="false" aria-controls="menu"><span data-i18n="nav.menu">Menu</span></button>
+    </div>
+  </header>
+
+  <div class="menu" id="menu" aria-hidden="true">
+    <nav class="menu__nav">
+      <a href="#travaux"><i class="mono">01</i><span data-i18n="nav.work">Travaux</span></a>
+      <a href="#pipeline"><i class="mono">02</i><span data-i18n="nav.pipeline">Pipeline</span></a>
+      <a href="#motion"><i class="mono">03</i><span data-i18n="nav.motion">Motion</span></a>
+      <a href="#parcours"><i class="mono">04</i><span data-i18n="nav.path">Parcours</span></a>
+      <a href="#contact"><i class="mono">05</i><span data-i18n="nav.contact">Contact</span></a>
+    </nav>
+    <button class="quick-btn quick-btn--menu" type="button" data-quick><i class="quick-btn__ring" aria-hidden="true"></i><span data-i18n="quick.btn">Recruteur pressé ?</span><b class="mono" data-i18n="quick.btn.time">30 s</b></button>
+  </div>
+
+  <main id="main">
+    <!-- 00 · Accueil -->
+    <section class="hero" id="top">
+      <div class="hero__top mono">
+        <span class="hero__fullname" data-i18n="hero.fullname">Johanne Rayane Nkeuchatchou Pamegne</span>
+        <span class="hero__coords">48.9362° N — 2.3574° E</span>
+      </div>
+      <h1 class="hero__title" aria-label="Johanne Pamegne">
+        <span class="hero__line" data-split="chars">Johanne</span>
+        <span class="hero__line hero__line--right" data-split="chars">Pamegne<b class="u-accent">.</b></span>
+      </h1>
+      <div class="hero__bottom">
+        <p class="hero__kicker" data-i18n="hero.kicker">Alternant <span class="u-accent">Automatisation &amp; IA</span><br>Motion design écrit en code</p>
+        <div class="hero__mid">
+          <p class="hero__lede" data-i18n="hero.lede">Je conçois des systèmes qui travaillent tout seuls — agents IA, workflows n8n, serveurs — et je leur donne du mouvement.</p>
+          <button class="quick-btn" type="button" data-quick data-magnetic><i class="quick-btn__ring" aria-hidden="true"></i><span data-i18n="quick.btn">Recruteur pressé ?</span><b class="mono" data-i18n="quick.btn.time">30 s</b></button>
+        </div>
+        <div class="hero__meta mono">
+          <span data-i18n="hero.loc">Saint-Denis · Île-de-France</span>
+          <span class="hero__scroll"><i></i><span data-i18n="hero.scroll">Faire défiler</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bandeau des outils -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track" id="marquee">
+        <span>n8n</span><b>✦</b><span>API Claude</span><b>✦</b><span>Agents IA</span><b>✦</b><span>Docker</span><b>✦</b><span>PostgreSQL</span><b>✦</b><span>Supabase</span><b>✦</b><span>React</span><b>✦</b><span>GSAP</span><b>✦</b><span>HyperFrames</span><b>✦</b><span>ElevenLabs</span><b>✦</b><span>Coolify</span><b>✦</b>
+      </div>
+    </div>
+
+    <!-- 01 · Manifeste -->
+    <section class="manifesto section" id="manifeste">
+      <p class="label mono" data-i18n="manifesto.label">(01) Manifeste</p>
+      <p class="manifesto__text" id="manifestoText" data-i18n="manifesto.text"></p>
+      <div class="stats" id="stats"></div>
+      <p class="manifesto__method mono" data-i18n="manifesto.method"></p>
+    </section>
+
+    <!-- 02 · Travaux -->
+    <section class="work section" id="travaux">
+      <div class="section__head">
+        <p class="label mono" data-i18n="work.label">(02) Travaux sélectionnés</p>
+        <h2 class="title" data-reveal="lines" data-i18n="work.title"></h2>
+        <p class="hint mono" data-i18n="work.hint"></p>
+      </div>
+      <!-- Scène épinglée : un projet par écran, la sculpture 3D change avec le défilement -->
+      <div class="work__pin" id="workPin">
+        <div class="work__count" aria-hidden="true"><div class="work__odo" id="workOdo"></div></div>
+        <div class="work__stage" id="workStage"></div>
+        <nav class="work__rail mono" id="workRail" aria-label="Projets"></nav>
+      </div>
+    </section>
+
+    <!-- 03 · Pipeline -->
+    <section class="pipeline" id="pipeline">
+      <div class="pipeline__pin">
+        <div class="pipeline__head">
+          <p class="label mono" data-i18n="pipeline.label">(03) Pipeline en direct</p>
+          <h2 class="title" data-i18n="pipeline.title"></h2>
+          <p class="pipeline__intro" data-i18n="pipeline.intro"></p>
+        </div>
+        <div class="pipeline__stage">
+          <div class="pipeline__graph" id="pipelineGraph"></div>
+          <div class="pipeline__log mono" id="pipelineLog" aria-live="off"></div>
+        </div>
+        <p class="pipeline__note mono" data-i18n="pipeline.note"></p>
+      </div>
+    </section>
+
+    <!-- 04 · Motion -->
+    <section class="motion section" id="motion">
+      <div class="section__head">
+        <p class="label mono" data-i18n="motion.label">(04) Motion design</p>
+        <h2 class="title" data-reveal="lines" data-i18n="motion.title"></h2>
+        <p class="section__intro" data-i18n="motion.intro"></p>
+      </div>
+      <div class="reel-stage"><div class="reel" id="reel"></div></div>
+    </section>
+
+    <!-- Le Meilleur des mondes : hors de la section épinglée, pour que l'éventail 3D se joue à l'écran -->
+    <section class="section mdm-section" aria-label="Le Meilleur des mondes">
+      <div class="mdm">
+        <div class="mdm__text">
+          <h3 class="mdm__title" data-i18n="mdm.title">Le Meilleur des mondes</h3>
+          <p data-i18n="mdm.text"></p>
+        </div>
+        <div class="mdm__pages" id="mdmPages">
+          <img src="./media/mdm-1.webp" alt="Le Meilleur des mondes, page 1" loading="lazy" width="540" height="960" />
+          <img src="./media/mdm-2.webp" alt="Le Meilleur des mondes, page 2" loading="lazy" width="540" height="960" />
+          <img src="./media/mdm-3.webp" alt="Le Meilleur des mondes, page 3" loading="lazy" width="540" height="960" />
+          <img src="./media/mdm-4.webp" alt="Le Meilleur des mondes, page 4" loading="lazy" width="540" height="960" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 · Capacités -->
+    <section class="caps section" id="capacites">
+      <div class="section__head">
+        <p class="label mono" data-i18n="cap.label">(05) Capacités</p>
+        <h2 class="title" data-reveal="lines" data-i18n="cap.title"></h2>
+      </div>
+      <div class="caps__grid" id="caps"></div>
+    </section>
+
+    <!-- 06 · Parcours -->
+    <section class="path section" id="parcours">
+      <div class="section__head">
+        <p class="label mono" data-i18n="path.label">(06) Parcours</p>
+        <h2 class="title" data-reveal="lines" data-i18n="path.title"></h2>
+      </div>
+      <ol class="path__list" id="path"></ol>
+    </section>
+
+    <!-- 07 · Contact -->
+    <section class="contact" id="contact">
+      <p class="label mono" data-i18n="contact.label">(07) Contact</p>
+      <h2 class="contact__title" data-i18n="contact.title"></h2>
+      <p class="contact__text" data-i18n="contact.text"></p>
+      <div class="contact__actions">
+        <a class="btn btn--primary" id="mailBtn" href="mailto:johannepamegne@gmail.com" data-magnetic><span class="btn__fill"></span><span class="btn__label" data-i18n="contact.mail">Écrire un e-mail</span><span class="btn__arrow">→</span></a>
+        <a class="btn" id="cvBtn" href="/media/CV_Johanne-Rayane_NKEUCHATCHOU-PAMEGNE.pdf" download data-magnetic><span class="btn__fill"></span><span class="btn__label" data-i18n="contact.cv">Télécharger le CV</span><span class="btn__arrow">↓</span></a>
+        <button class="btn btn--ghost" id="copyBtn" type="button" data-magnetic><span class="btn__fill"></span><span class="btn__label" data-i18n="contact.copy">Copier l'adresse</span></button>
+      </div>
+      <dl class="contact__list mono">
+        <div><dt>E-mail</dt><dd><a href="mailto:johannepamegne@gmail.com" class="roll">johannepamegne@gmail.com</a></dd></div>
+        <div><dt>Tél.</dt><dd><a href="tel:+33749163792" class="roll">07 49 16 37 92</a></dd></div>
+        <div><dt>GitHub</dt><dd><a href="https://github.com/Johnnyrayane237" target="_blank" rel="noopener" class="roll">Johnnyrayane237</a></dd></div>
+        <div><dt>LinkedIn</dt><dd><a href="https://www.linkedin.com/in/johanne-pamegne-2672b63b4" target="_blank" rel="noopener" class="roll">johanne-pamegne</a></dd></div>
+      </dl>
+      <footer class="footer mono">
+        <span data-i18n="footer.credit">Conçu et codé par Johanne.</span>
+        <span><span data-i18n="footer.time">Heure locale</span> · <time id="clock">--:--:--</time> Paris</span>
+        <a href="#top" class="roll" data-i18n="footer.top">Haut de page</a>
+      </footer>
+    </section>
+  </main>
+
+  <!-- Fiche projet -->
+  <div class="case" id="case" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="caseTitle">
+    <div class="case__curtain"></div>
+    <div class="case__scroll" data-lenis-prevent>
+      <button class="case__close mono" id="caseClose" type="button" data-magnetic><span data-i18n="case.close">Fermer</span> ✕</button>
+      <div class="case__body" id="caseBody"></div>
+    </div>
+  </div>
+
+  <!-- L'essentiel en 30 secondes, pour un recruteur pressé -->
+  <div class="quick" id="quick" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="quickTitle">
+    <div class="quick__veil"></div>
+    <div class="quick__panel" data-lenis-prevent>
+      <button class="case__close mono" id="quickClose" type="button"><span data-i18n="case.close">Fermer</span> ✕</button>
+      <div class="quick__body" id="quickBody"></div>
+    </div>
+  </div>
+
+  <!-- Lecteur vidéo -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
+    <button class="case__close mono" id="lightboxClose" type="button"><span data-i18n="case.close">Fermer</span> ✕</button>
+    <video id="lightboxVideo" controls playsinline></video>
+  </div>
+
+</body>
+</html>
